@@ -1,0 +1,43 @@
+# =========================
+# Python / FastAPI junk
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+
+# =========================
+# Virtual environments
+# =========================
+venv/
+backend/venv/
+
+# =========================
+# Environment variables (SECRETS)
+# =========================
+.env
+backend/.env
+
+# =========================
+# Logs (noise)
+# =========================
+*.log
+LOGS.txt
+
+# =========================
+# Databases / runtime state
+# =========================
+*.db
+
+# =========================
+# Generated / output files
+# =========================
+backend/generated_images/*
+!backend/generated_images/.gitkeep
+
+# =========================
+# Editor / OS trash
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
