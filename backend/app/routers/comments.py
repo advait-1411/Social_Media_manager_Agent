@@ -12,7 +12,15 @@ from typing import List, Optional, Tuple
 from datetime import datetime, timezone
 import os
 import logging
-from ..services.instagram_comments import get_post_comments, reply_to_comment
+from ..services.instagram_comments import (
+    get_post_comments, 
+    reply_to_comment, 
+    post_first_comment, 
+    pin_comment,
+    set_comments_enabled,
+    set_like_count_hidden
+)
+
 from ..services.ai_assistant import analyze_comment, generate_comment_reply
 
 logger = logging.getLogger(__name__)
@@ -45,6 +53,14 @@ class SuggestReplyRequest(BaseModel):
 
 class ReplyRequest(BaseModel):
     reply_text: str
+
+class FirstCommentRequest(BaseModel):
+    text: str
+
+class CommentSettingsRequest(BaseModel):
+    comments_enabled: Optional[bool] = None
+    hide_like_count: Optional[bool] = None
+
 
 
 def resolve_instagram_credentials(db: Session) -> Tuple[str, str]:
@@ -314,3 +330,133 @@ def post_reply(
     except Exception as e:
         logger.error(f"[COMMENTS] ✗ Error posting reply: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to post reply: {str(e)}")
+
+
+@router.post("/posts/{post_id}/comments/first")
+def post_first_comment_endpoint(
+    post_id: int,
+    request: FirstCommentRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Post a "first comment" on an Instagram post.
+    Useful for "be the first to comment" feature.
+    """
+    logger.info(f"[COMMENTS] Posting first comment on post ID: {post_id}")
+    
+    # Load post
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Get Instagram media ID
+    platform_settings = post.platform_settings or {}
+    media_id = platform_settings.get("instagram_media_id")
+    
+    if not media_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Post has no instagram_media_id; publish it first."
+        )
+    
+    # Resolve credentials
+    user_id, token = resolve_instagram_credentials(db)
+    
+    try:
+        # Post comment
+        comment_id = post_first_comment(media_id, request.text, token)
+        
+        # Optionally store in database
+        new_comment = models.Comment(
+            post_id=post_id,
+            platform="instagram",
+            external_comment_id=comment_id,
+            author_username="[Your Account]",  # This is our own comment
+            text=request.text,
+            sentiment="neutral",
+            category="general",
+            replied=True  # Mark as replied since it's our own comment
+        )
+        db.add(new_comment)
+        db.commit()
+        
+        logger.info(f"[COMMENTS] ✓ First comment posted successfully")
+        
+        return {
+            "success": True,
+            "comment_id": comment_id,
+            "message": "First comment posted successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"[COMMENTS] ✗ Error posting first comment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to post first comment: {str(e)}")
+
+
+@router.post("/posts/{post_id}/comments/settings")
+def update_comment_settings(
+    post_id: int,
+    request: CommentSettingsRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update comment and like visibility settings for an Instagram post.
+    
+    Note: Some settings may not be supported by Instagram Graph API.
+    Returns which settings were successfully applied.
+    """
+    logger.info(f"[COMMENTS] Updating comment settings for post ID: {post_id}")
+    
+    # Load post
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Get Instagram media ID
+    platform_settings = post.platform_settings or {}
+    media_id = platform_settings.get("instagram_media_id")
+    
+    if not media_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Post has no instagram_media_id; publish it first."
+        )
+    
+    # Resolve credentials
+    user_id, token = resolve_instagram_credentials(db)
+    
+    results = {
+        "success": True,
+        "supported": {},
+        "messages": []
+    }
+    
+    # Try to set comments enabled/disabled
+    if request.comments_enabled is not None:
+        try:
+            supported = set_comments_enabled(media_id, request.comments_enabled, token)
+            results["supported"]["comments_enabled"] = supported
+            if supported:
+                results["messages"].append(f"Comments {'enabled' if request.comments_enabled else 'disabled'} successfully")
+            else:
+                results["messages"].append("Comments toggle not supported after publishing (must be set during creation)")
+        except Exception as e:
+            logger.error(f"[COMMENTS] Error setting comments enabled: {str(e)}")
+            results["supported"]["comments_enabled"] = False
+            results["messages"].append(f"Failed to toggle comments: {str(e)}")
+    
+    # Try to set like count hidden
+    if request.hide_like_count is not None:
+        try:
+            supported = set_like_count_hidden(media_id, request.hide_like_count, token)
+            results["supported"]["hide_like_count"] = supported
+            if supported:
+                results["messages"].append(f"Like count {'hidden' if request.hide_like_count else 'shown'} successfully")
+            else:
+                results["messages"].append("Hide like count not supported via API (must be configured in Instagram app)")
+        except Exception as e:
+            logger.error(f"[COMMENTS] Error setting like count visibility: {str(e)}")
+            results["supported"]["hide_like_count"] = False
+            results["messages"].append(f"Failed to toggle like count: {str(e)}")
+    
+    return results

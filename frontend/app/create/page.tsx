@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { connectorsApi, assetsApi, postsApi, aiApi } from '@/lib/api';
+import { ScheduleModal } from '@/components/schedule-modal';
 
 const CHANNELS = [
     { id: 'instagram', name: 'Instagram', icon: Instagram, color: 'text-pink-600', active: true },
@@ -33,20 +36,26 @@ export default function CreatePage() {
     const [media, setMedia] = useState<Asset | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showAssetModal, setShowAssetModal] = useState(false);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [assets, setAssets] = useState<Asset[]>([]);
     const [backendChannels, setBackendChannels] = useState<Channel[]>([]);
-    const [previewPlatform, setPreviewPlatform] = useState('instagram'); // New State
+    const [previewPlatform, setPreviewPlatform] = useState('instagram');
+    const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 
     useEffect(() => {
-        fetch('http://localhost:8000/api/connectors/')
-            .then(res => res.json())
-            .then(data => setBackendChannels(data))
-            .catch(err => console.error("Failed to fetch channels", err));
+        connectorsApi.getAll()
+            .then((data: any) => setBackendChannels(data as Channel[]))
+            .catch(err => {
+                console.error("Failed to fetch channels", err);
+                toast.error('Failed to load channels');
+            });
 
-        fetch('http://localhost:8000/api/assets/')
-            .then(res => res.json())
-            .then(data => setAssets(data))
-            .catch(err => console.error("Failed to fetch assets", err));
+        assetsApi.getAll()
+            .then((data: any) => setAssets(data as Asset[]))
+            .catch(err => {
+                console.error("Failed to fetch assets", err);
+                toast.error('Failed to load assets');
+            });
     }, []);
 
     const toggleChannel = (id: string) => {
@@ -59,39 +68,56 @@ export default function CreatePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
-            const res = await fetch('http://localhost:8000/api/assets/upload', {
-                method: 'POST',
-                body: formData
-            });
+            const uploadedAsset = await assetsApi.upload(file);
+            setMedia(uploadedAsset);
+            toast.success('File uploaded successfully');
 
-            if (res.ok) {
-                const uploadedAsset = await res.json();
-                setMedia(uploadedAsset);
-                // Refresh assets list
-                fetch('http://localhost:8000/api/assets/')
-                    .then(res => res.json())
-                    .then(data => setAssets(data))
-                    .catch(err => console.error("Failed to fetch assets", err));
-            } else {
-                const errorData = await res.json().catch(() => ({ detail: 'Upload failed' }));
-                alert(`Upload failed: ${errorData.detail || 'Unknown error'}`);
-            }
+            // Refresh assets list
+            assetsApi.getAll()
+                .then((data: any) => setAssets(data))
+                .catch(err => console.error("Failed to fetch assets", err));
         } catch (error: any) {
             console.error("Upload error:", error);
-            alert(`Failed to upload file: ${error.message || 'Network error'}`);
+            toast.error(error.message || 'Failed to upload file');
         } finally {
             // Reset file input
             e.target.value = '';
         }
     };
 
+    const handleGenerateCaption = async () => {
+        if (!caption.trim()) {
+            toast.message("Type a few words first", {
+                description: "AI needs some context to generate a caption."
+            });
+            return;
+        }
+
+        setIsGeneratingCaption(true);
+        try {
+            // Determine platform context
+            const primaryPlatform = selectedChannels.length > 0 ? selectedChannels[0] : previewPlatform;
+
+            const response = await aiApi.generateCaption(caption, primaryPlatform, 'professional') as { caption: string };
+
+            if (response.caption) {
+                setCaption(response.caption);
+                toast.success("Caption generated with AI!");
+            } else {
+                throw new Error("Empty response from AI");
+            }
+        } catch (error: any) {
+            console.error("Caption generation error:", error);
+            toast.error(error.message || "Could not generate caption. Please try again.");
+        } finally {
+            setIsGeneratingCaption(false);
+        }
+    };
+
     const handlePost = async (status: 'draft' | 'published' = 'draft') => {
         if (!caption && !media) {
-            alert("Please add some content or media");
+            toast.error("Please add some content or media");
             return;
         }
 
@@ -111,39 +137,32 @@ export default function CreatePage() {
                 platform_settings: {}
             };
 
-            const res = await fetch('http://localhost:8000/api/posts/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error("Failed to create post");
-            const data = await res.json();
+            const data = await postsApi.create(payload) as { id: number };
 
             if (status === 'published') {
-                const pubRes = await fetch(`http://localhost:8000/api/posts/${data.id}/publish`, {
-                    method: 'POST'
-                });
-                if (!pubRes.ok) {
-                    const errData = await pubRes.json();
-                    const errorMsg = errData.detail || "Publishing failed";
-                    
+                try {
+                    const pubData = await postsApi.publish(data.id) as { mock?: boolean };
+
+                    if (pubData.mock) {
+                        toast.warning("Post simulated! (Localhost mode)");
+                    } else {
+                        toast.success("Post published successfully to Instagram!");
+                    }
+                } catch (pubError: any) {
+                    const errorMsg = pubError.message || "Publishing failed";
+
                     // Check for token expiration
                     if (errorMsg.includes("expired") || errorMsg.includes("token")) {
-                        alert(`❌ Publishing Failed:\n\n${errorMsg}\n\nPlease update your Instagram access token in the backend/.env file or channel settings.`);
+                        toast.error(`Publishing failed: ${errorMsg}. Please update your Instagram access token.`, {
+                            duration: 5000,
+                        });
                     } else {
-                        alert(`❌ Publishing Failed:\n\n${errorMsg}`);
+                        toast.error(`Publishing failed: ${errorMsg}`);
                     }
-                    throw new Error(errorMsg);
-                }
-                const pubData = await pubRes.json();
-                if (pubData.mock) {
-                    alert("⚠️ Post simulated! (Localhost mode - Instagram API cannot access localhost URLs)");
-                } else {
-                    alert("✅ Post published successfully to Instagram!");
+                    throw pubError;
                 }
             } else {
-                alert("✅ Post saved as draft!");
+                toast.success("Post saved as draft!");
             }
 
             setCaption('');
@@ -151,9 +170,53 @@ export default function CreatePage() {
 
         } catch (error: any) {
             console.error(error);
-            alert(error.message || "Something went wrong");
+            if (!error.message?.includes('Publishing failed')) {
+                toast.error(error.message || "Something went wrong");
+            }
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleScheduleConfirm = async (date: string) => {
+        if (!caption && !media) {
+            toast.error("Please add some content or media");
+            return;
+        }
+
+        try {
+            const channelIds: number[] = [];
+            if (selectedChannels.includes('instagram')) {
+                const ig = backendChannels.find(c => c.platform === 'instagram');
+                if (ig) channelIds.push(ig.id);
+            }
+
+            const payload = {
+                content: caption,
+                media_assets: media ? [media.id] : [],
+                status: 'draft',
+                channels: channelIds,
+                platform_settings: {}
+            };
+
+            // 1. Create Post
+            const data = await postsApi.create(payload) as { id: number };
+
+            // 2. Schedule Post
+            await postsApi.schedule(data.id, date);
+
+            toast.success(`Post scheduled for ${new Date(date).toLocaleString()}`);
+            setShowScheduleModal(false);
+
+            // Reset form
+            setCaption('');
+            setMedia(null);
+
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Failed to schedule post");
+            // Do NOT re-throw, so modal stays open or we handle it gracefully?
+            // Existing logic: catch and toast.
         }
     };
 
@@ -212,16 +275,33 @@ export default function CreatePage() {
                             className="origin-top"
                         >
                             <textarea
-                                className="w-full h-32 p-4 rounded-xl border border-gray-200 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base placeholder:text-gray-400 transition-shadow shadow-sm"
-                                placeholder="What's on your mind?"
+                                className={cn(
+                                    "w-full h-32 p-4 rounded-xl border border-gray-200 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base placeholder:text-gray-400 transition-shadow shadow-sm",
+                                    isGeneratingCaption && "opacity-50"
+                                )}
+                                placeholder="What's on your mind? Type a few words for context..."
                                 value={caption}
                                 onChange={(e) => setCaption(e.target.value)}
+                                disabled={isGeneratingCaption}
                             />
                         </motion.div>
                         <div className="flex items-center justify-between px-1">
                             <div className="flex gap-2">
-                                <button className="text-gray-400 hover:text-blue-600 transition hover:scale-110"><Smile className="w-5 h-5" /></button>
-                                <button className="text-gray-400 hover:text-blue-600 transition hover:scale-110"><Hash className="w-5 h-5" /></button>
+                                <button
+                                    onClick={handleGenerateCaption}
+                                    disabled={isGeneratingCaption}
+                                    className={cn(
+                                        "text-gray-400 hover:text-blue-600 transition hover:scale-110 flex items-center gap-2",
+                                        isGeneratingCaption && "pointer-events-none animate-pulse text-blue-500"
+                                    )}
+                                    title="Generate caption & hashtags with AI"
+                                >
+                                    {isGeneratingCaption ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <Hash className="w-5 h-5" />
+                                    )}
+                                </button>
                             </div>
                             <span className="text-xs text-gray-400">{caption.length} chars</span>
                         </div>
@@ -291,7 +371,11 @@ export default function CreatePage() {
                         Save as Draft
                     </button>
                     <div className="flex gap-2">
-                        <button disabled={isSubmitting} className="bg-white border text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 hover:shadow transition-all active:scale-95">
+                        <button
+                            disabled={isSubmitting}
+                            onClick={() => setShowScheduleModal(true)}
+                            className="bg-white border text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 hover:shadow transition-all active:scale-95"
+                        >
                             <Calendar className="w-4 h-4" /> Schedule
                         </button>
                         <div className="relative flex shadow-sm rounded-lg">
@@ -506,6 +590,12 @@ export default function CreatePage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <ScheduleModal
+                isOpen={showScheduleModal}
+                onClose={() => setShowScheduleModal(false)}
+                onConfirm={handleScheduleConfirm}
+            />
 
         </motion.div>
     );
