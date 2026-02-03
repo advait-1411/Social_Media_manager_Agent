@@ -1,5 +1,6 @@
 import './globals.css';
 import LayoutShell from '@/components/layout-shell';
+import { Toaster } from 'sonner';
 
 export default function RootLayout({
   children,
@@ -12,6 +13,7 @@ export default function RootLayout({
         <LayoutShell>
           {children}
         </LayoutShell>
+        <Toaster position="bottom-right" richColors />
       </body>
     </html>
   );

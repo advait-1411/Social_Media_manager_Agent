@@ -81,3 +81,21 @@ async def upload_asset(file: UploadFile = File(...), db: Session = Depends(get_d
         return asset
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{asset_id}")
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Attempt to delete file from disk
+    try:
+        if os.path.exists(asset.file_path):
+            os.remove(asset.file_path)
+    except Exception as e:
+        print(f"Error deleting file {asset.file_path}: {e}")
+        # We continue to delete the DB record even if file deletion fails/file missing
+        
+    db.delete(asset)
+    db.commit()
+    return {"message": "Asset deleted successfully"}

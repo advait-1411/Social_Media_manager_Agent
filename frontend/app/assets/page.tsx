@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react';
-import { Sparkles, Upload, Search, Filter, RefreshCw, Image as ImageIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { Sparkles, Upload, Search, Filter, RefreshCw, Image as ImageIcon, X, Download, Trash2, ExternalLink } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
@@ -12,6 +12,7 @@ interface Asset {
     created_at: string;
     prompt: string;
     asset_type: string;
+    meta_data?: { source?: string;[key: string]: any };
 }
 
 export default function AssetsPage() {
@@ -22,6 +23,27 @@ export default function AssetsPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+
+    // New State for Search, Filter, and Preview
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filterType, setFilterType] = useState("All Assets");
+    const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+
+    // Filter Logic
+    const filteredAssets = useMemo(() => {
+        return assets.filter(asset => {
+            const matchesSearch = (asset.prompt || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+            if (filterType === "All Assets") return matchesSearch;
+            if (filterType === "Generated") return matchesSearch && asset.meta_data?.source === "generated";
+            if (filterType === "Uploaded") return matchesSearch && asset.meta_data?.source === "upload";
+
+            return matchesSearch;
+        });
+    }, [assets, searchQuery, filterType]);
+
+    const cleanUrl = (path: string) => `http://localhost:8000/${path.replace(/^\.?\//, '')}`;
+
 
     const fetchAssets = async () => {
         try {
@@ -49,8 +71,8 @@ export default function AssetsPage() {
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-                
-                const res = await fetch('http://localhost:8000/', { 
+
+                const res = await fetch('http://localhost:8000/', {
                     method: 'GET',
                     signal: controller.signal
                 });
@@ -63,25 +85,25 @@ export default function AssetsPage() {
                 }
             }
         };
-        
+
         checkBackend();
         fetchAssets();
     }, []);
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
-        
+
         setIsGenerating(true);
         setError(null);
         setSuccess(null);
-        
+
         try {
             const res = await fetch('http://localhost:8000/api/assets/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: prompt.trim(), count: 4, model: 'google/gemini-2.5-flash-image' })
             });
-            
+
             if (res.ok) {
                 const data = await res.json();
                 setPrompt("");
@@ -94,8 +116,8 @@ export default function AssetsPage() {
                 let errorMessage = 'Failed to generate images';
                 try {
                     const errorData = await res.json();
-                    errorMessage = typeof errorData.detail === 'string' 
-                        ? errorData.detail 
+                    errorMessage = typeof errorData.detail === 'string'
+                        ? errorData.detail
                         : errorData.detail?.message || errorData.message || `Server error (${res.status})`;
                 } catch {
                     errorMessage = `Server error: ${res.status} ${res.statusText}`;
@@ -120,32 +142,32 @@ export default function AssetsPage() {
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
-        
+
         setError(null);
         setSuccess(null);
-        
+
         // Upload each file
         const uploadPromises = Array.from(files).map(async (file) => {
             const formData = new FormData();
             formData.append('file', file);
-            
+
             try {
                 const res = await fetch('http://localhost:8000/api/assets/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!res.ok) {
                     const errorData = await res.json().catch(() => ({ detail: res.statusText }));
                     throw new Error(errorData.detail || `Upload failed: ${res.statusText}`);
                 }
-                
+
                 return await res.json();
             } catch (error: any) {
                 throw new Error(`Failed to upload ${file.name}: ${error.message}`);
             }
         });
-        
+
         try {
             const results = await Promise.all(uploadPromises);
             setSuccess(`Successfully uploaded ${results.length} file(s)!`);
@@ -157,6 +179,48 @@ export default function AssetsPage() {
         } finally {
             // Reset file input
             e.target.value = '';
+        }
+    };
+
+    const handleDelete = async (asset: Asset) => {
+        if (!confirm("Are you sure you want to delete this asset?")) return;
+
+        try {
+            const res = await fetch(`http://localhost:8000/api/assets/${asset.id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                setAssets(prev => prev.filter(a => a.id !== asset.id));
+                setSelectedAsset(null);
+                setSuccess("Asset deleted successfully");
+                setTimeout(() => setSuccess(null), 3000);
+            } else {
+                throw new Error("Failed to delete asset");
+            }
+        } catch (error) {
+            console.error("Delete error:", error);
+            setError("Failed to delete asset");
+        }
+    };
+
+    const handleDownload = async (asset: Asset) => {
+        try {
+            const imageUrl = cleanUrl(asset.file_path);
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const filename = asset.file_path.split('/').pop() || `asset-${asset.id}.png`;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Download error:", error);
+            setError("Failed to download asset");
         }
     };
 
@@ -200,7 +264,7 @@ export default function AssetsPage() {
                             </p>
                         </div>
                     )}
-                    
+
                     <label className="block text-sm font-medium text-gray-700 mb-2">Generate Images with AI</label>
                     <div className="flex gap-2">
                         <input
@@ -224,21 +288,21 @@ export default function AssetsPage() {
                             {isGenerating ? 'Generating...' : 'Generate'}
                         </button>
                     </div>
-                    
+
                     {/* Error Message */}
                     {error && (
                         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-sm text-red-700 whitespace-pre-line">{error}</p>
                         </div>
                     )}
-                    
+
                     {/* Success Message */}
                     {success && (
                         <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                             <p className="text-sm text-green-700">{success}</p>
                         </div>
                     )}
-                    
+
                     <p className="text-xs text-gray-400 mt-2">Powered by Gemini 2.5 Flash / OpenRouter</p>
                 </div>
                 {/* Background decoration */}
@@ -248,22 +312,30 @@ export default function AssetsPage() {
             </div>
 
             {/* Filters & Search */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm sticky top-0 z-10 backdrop-blur-xl bg-white/80 transition-all">
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                         type="text"
-                        placeholder="Search assets..."
+                        placeholder="Search assets by prompt..."
                         className="w-full pl-9 pr-4 py-2 text-sm outline-none bg-transparent"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto px-2">
-                    <button className="p-2 hover:bg-gray-50 rounded-md text-gray-500"><Filter className="w-4 h-4" /></button>
-                    <select className="text-sm bg-transparent outline-none text-gray-600 cursor-pointer">
-                        <option>All Assets</option>
-                        <option>Generated</option>
-                        <option>Uploaded</option>
-                    </select>
+                    <div className="flex items-center gap-2 border-l pl-4 border-gray-200">
+                        <Filter className="w-4 h-4 text-gray-400" />
+                        <select
+                            className="text-sm bg-transparent outline-none text-gray-600 cursor-pointer py-1"
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                        >
+                            <option>All Assets</option>
+                            <option>Generated</option>
+                            <option>Uploaded</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -276,16 +348,8 @@ export default function AssetsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {assets.map((asset) => {
-                        // Correct path for serving: backend serves generated_images at /generated_images static mount
-                        // But we are on localhost:3000 accessing localhost:8000
-                        // Ideally we need full URL or proxy
-                        // Asset.file_path is likely "generated_images/filename.jpg".
-                        // We need to append backend base url.
-
-                        // Strip any leading ./ or /
-                        const cleanPath = asset.file_path.replace(/^\.?\//, '');
-                        const imageUrl = `http://localhost:8000/${cleanPath}`;
+                    {filteredAssets.map((asset) => {
+                        const imageUrl = cleanUrl(asset.file_path);
 
                         return (
                             <motion.div
@@ -293,7 +357,8 @@ export default function AssetsPage() {
                                 layout
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                                onClick={() => setSelectedAsset(asset)}
+                                className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer ring-offset-2 hover:ring-2 hover:ring-blue-500/50"
                             >
                                 <Image
                                     src={imageUrl}
@@ -304,12 +369,12 @@ export default function AssetsPage() {
                                 />
 
                                 {/* Overlay */}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                                    <p className="text-white text-xs line-clamp-2 font-medium">{asset.prompt || "No prompt"}</p>
-                                    <div className="flex gap-2 mt-2">
-                                        <button className="bg-white/20 hover:bg-white/40 backdrop-blur-md p-1.5 rounded-md text-white transition-colors">
-                                            <Upload className="w-3 h-3" />
-                                        </button>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                                    <p className="text-white text-xs line-clamp-2 font-medium mb-2">{asset.prompt || "No prompt"}</p>
+                                    <div className="flex gap-2 items-center justify-between">
+                                        <span className="text-[10px] text-white/80 uppercase tracking-wider bg-black/20 px-1.5 py-0.5 rounded backdrop-blur-sm">
+                                            {asset.meta_data?.source || asset.asset_type || "asset"}
+                                        </span>
                                     </div>
                                 </div>
                             </motion.div>
@@ -327,6 +392,107 @@ export default function AssetsPage() {
                     <p className="text-gray-500 text-sm mt-1">Generate some images or upload your own.</p>
                 </div>
             )}
+
+            {/* Asset Preview Modal */}
+            <AnimatePresence>
+                {selectedAsset && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-8"
+                        onClick={() => setSelectedAsset(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 20 }}
+                            className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col md:flex-row shadow-2xl overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Image Section */}
+                            <div className="flex-1 bg-gray-100 relative min-h-[400px] md:min-h-full">
+                                <Image
+                                    src={cleanUrl(selectedAsset.file_path)}
+                                    alt={selectedAsset.prompt || "Asset Preview"}
+                                    fill
+                                    className="object-contain p-4"
+                                    unoptimized
+                                />
+                            </div>
+
+                            {/* Details Section */}
+                            <div className="w-full md:w-96 bg-white p-6 flex flex-col border-l border-gray-100">
+                                <div className="flex justify-between items-start mb-6">
+                                    <h3 className="text-xl font-bold text-gray-900">Asset Details</h3>
+                                    <button
+                                        onClick={() => setSelectedAsset(null)}
+                                        className="p-1 hover:bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition-colors"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6 flex-1 overflow-y-auto">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Prompt</label>
+                                        <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+                                            {selectedAsset.prompt || <span className="text-gray-400 italic">No prompt available</span>}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</label>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className={cn(
+                                                    "px-2 py-1 rounded-full text-xs font-medium capitalize",
+                                                    selectedAsset.meta_data?.source === 'generated' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                                )}>
+                                                    {selectedAsset.meta_data?.source || selectedAsset.asset_type}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</label>
+                                            <p className="text-sm text-gray-900 mt-1">
+                                                {new Date(selectedAsset.created_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 mt-6 border-t border-gray-100 space-y-3">
+                                    <button
+                                        onClick={() => handleDownload(selectedAsset)}
+                                        className="flex items-center justify-center gap-2 w-full bg-gray-900 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-all hover:scale-[1.02]"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download Image
+                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => window.open(cleanUrl(selectedAsset.file_path), '_blank')}
+                                            className="flex-1 flex items-center justify-center gap-2 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                            Open Full
+                                        </button>
+                                        {/* TODO: Add delete functionality */}
+                                        <button
+                                            onClick={() => handleDelete(selectedAsset)}
+                                            className="flex items-center justify-center p-2.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                            title="Delete Asset"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -34,11 +34,22 @@ class Post(Base):
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text, nullable=True)  # Caption
     media_assets = Column(JSON, default=list)  # List of asset IDs
-    status = Column(String, default="draft")  # draft, scheduled, published, posted
+    status = Column(String, default="draft")  # draft, pending_approval, approved, scheduled, publishing, published, rejected, failed
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     channels = Column(JSON, default=list) # List of channel IDs targetted
     platform_settings = Column(JSON, default=dict)  # Per platform specific data (captions etc)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Approval workflow fields
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    approved_by = Column(String, nullable=True)
+    rejected_at = Column(DateTime(timezone=True), nullable=True)
+    rejected_by = Column(String, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+    
+    # Scheduling fields
+    last_publish_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
 
 class Comment(Base):
     __tablename__ = "comments"
