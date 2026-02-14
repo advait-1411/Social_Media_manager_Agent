@@ -13,6 +13,14 @@ export default function PublishPage() {
     const router = useRouter();
     const [view, setView] = useState<'calendar' | 'list'>('calendar');
     const [currentDate, setCurrentDate] = useState(new Date());
+    // Construct local ISO string for min date (system local time)
+    const now = new Date();
+    // Offset for local timezone to match input "datetime-local" behavior
+    // This gives "YYYY-MM-DDTHH:MM" in local time
+    // We want the input to represent local time, and we send that ISO string to backend.
+    // The backend deals with "naive" datetimes by assuming user's timezone (IST).
+
+    const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     const [posts, setPosts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -229,7 +237,14 @@ export default function PublishPage() {
                                     <div className="flex-1">
                                         <h3 className="font-medium text-gray-900 line-clamp-1">{post.content || "Untitled Post"}</h3>
                                         <p className="text-sm text-gray-500">
-                                            {post.scheduled_time ? format(pDate, 'MMM d, h:mm a') : 'Unscheduled'} • <span className="capitalize">{post.status}</span>
+                                            {/* Display time in local format. Backend sends UTC ISO with 'Z' usually. 
+                                                If it sends naive, Date() parses in local time. 
+                                                Ensure we handle the 'Z' if present to convert correctly. 
+                                            */}
+                                            {post.scheduled_time
+                                                ? format(new Date(post.scheduled_time), 'MMM d, h:mm a')
+                                                : 'Unscheduled'
+                                            } • <span className="capitalize">{post.status}</span>
                                         </p>
                                     </div>
                                     <button className="p-2 hover:bg-gray-100 rounded-md">

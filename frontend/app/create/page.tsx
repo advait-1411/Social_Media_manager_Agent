@@ -11,6 +11,7 @@ import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { connectorsApi, assetsApi, postsApi, aiApi } from '@/lib/api';
 import { ScheduleModal } from '@/components/schedule-modal';
+import { ImageEditorModal } from '@/components/image-editor-modal';
 
 const CHANNELS = [
     { id: 'instagram', name: 'Instagram', icon: Instagram, color: 'text-pink-600', active: true },
@@ -42,6 +43,10 @@ export default function CreatePage() {
     const [previewPlatform, setPreviewPlatform] = useState('instagram');
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 
+    // Editor State
+    const [showImageEditor, setShowImageEditor] = useState(false);
+    const [editorImageSrc, setEditorImageSrc] = useState<string>('');
+
     useEffect(() => {
         connectorsApi.getAll()
             .then((data: any) => setBackendChannels(data as Channel[]))
@@ -68,6 +73,11 @@ export default function CreatePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Directly upload for now, OR show editor immediately?
+        // Let's stick to upload then edit flow for simplicity, OR allow editing before final confirm.
+        // Current flow uses existing API which uploads immediately.
+        // To support editing, we probably want to load into editor locally first or wait until user clicks "Edit"
+
         try {
             const uploadedAsset = await assetsApi.upload(file);
             setMedia(uploadedAsset);
@@ -83,6 +93,33 @@ export default function CreatePage() {
         } finally {
             // Reset file input
             e.target.value = '';
+        }
+    };
+
+    const handleEditClick = () => {
+        if (!media) return;
+        const src = `http://localhost:8000/${media.file_path.replace(/^\.?\//, '')}`;
+        setEditorImageSrc(src);
+        setShowImageEditor(true);
+    };
+
+    const handleEditorSave = async (newFile: File) => {
+        // Upload the new edited file
+        try {
+            toast.loading("Uploading edited image...");
+            const uploadedAsset = await assetsApi.upload(newFile);
+            setMedia(uploadedAsset);
+            toast.dismiss();
+            toast.success('Image updated!');
+
+            // Refresh assets list
+            assetsApi.getAll()
+                .then((data: any) => setAssets(data))
+                .catch(err => console.error("Failed to fetch assets", err));
+        } catch (error: any) {
+            toast.dismiss();
+            toast.error("Failed to save edited image");
+            console.error(error);
         }
     };
 
@@ -324,12 +361,22 @@ export default function CreatePage() {
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
-                                    <button
-                                        onClick={() => setMedia(null)}
-                                        className="absolute top-2 right-2 bg-white/80 p-1 rounded-full text-gray-600 hover:text-red-600 transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
+
+                                    {/* Overlay Actions */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 gap-2">
+                                        <button
+                                            onClick={handleEditClick}
+                                            className="bg-white/90 text-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-white flex items-center gap-2 shadow-sm transform hover:scale-105 transition"
+                                        >
+                                            <ImageIcon className="w-4 h-4" /> Edit
+                                        </button>
+                                        <button
+                                            onClick={() => setMedia(null)}
+                                            className="bg-white/90 text-red-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-white flex items-center gap-2 shadow-sm transform hover:scale-105 transition"
+                                        >
+                                            <X className="w-4 h-4" /> Remove
+                                        </button>
+                                    </div>
                                 </motion.div>
                             ) : (
                                 <motion.div
@@ -595,6 +642,13 @@ export default function CreatePage() {
                 isOpen={showScheduleModal}
                 onClose={() => setShowScheduleModal(false)}
                 onConfirm={handleScheduleConfirm}
+            />
+
+            <ImageEditorModal
+                isOpen={showImageEditor}
+                onClose={() => setShowImageEditor(false)}
+                imageSrc={editorImageSrc}
+                onSave={handleEditorSave}
             />
 
         </motion.div>

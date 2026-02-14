@@ -7,3 +7,5 @@ python-multipart
 Pillow
 sqlalchemy
 openai
+pytz
+python-socketio

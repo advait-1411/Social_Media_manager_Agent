@@ -7,6 +7,7 @@ from typing import List, Optional
 from datetime import datetime, date, timezone
 import logging
 import pytz
+from ..socket_manager import socket_manager
 
 # Define logger
 logger = logging.getLogger(__name__)
@@ -98,7 +99,8 @@ def get_calendar_posts(
             "id": post.id,
             "content": post.content,
             "status": post.status,
-            "scheduled_time": post.scheduled_time.isoformat() if post.scheduled_time else None,
+            # Ensure we return valid ISO string with timezone info (Z or +00:00)
+            "scheduled_time": post.scheduled_time.replace(tzinfo=timezone.utc).isoformat() if post.scheduled_time else None,
             "platforms": post.channels or [],
             "platform_settings": post.platform_settings or {},
             "last_error": post.last_error
@@ -128,7 +130,7 @@ def update_post(post_id: int, updates: PostUpdate, db: Session = Depends(get_db)
     return post
 
 @router.post("/{post_id}/publish")
-def publish_post(post_id: int, db: Session = Depends(get_db)):
+async def publish_post(post_id: int, db: Session = Depends(get_db)):
     from ..services.scheduler import publish_post_now
     
     post = db.query(models.Post).filter(models.Post.id == post_id).first()
@@ -141,6 +143,14 @@ def publish_post(post_id: int, db: Session = Depends(get_db)):
         # Use the shared helper which handles idempotency, credentials, and image hosting
         media_id = publish_post_now(db, post)
         
+        # Emit socket event
+        await socket_manager.emit('post_status', {
+            'id': post_id,
+            'status': 'published',
+            'title': post.content[:20] + '...' if post.content else 'Post',
+            'message': 'Post published successfully!'
+        })
+
         return {
             "message": "Post published successfully to Instagram",
             "status": "published",
@@ -159,7 +169,7 @@ def publish_post(post_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=detail_message)
 
 @router.post("/{post_id}/schedule", response_model=dict)
-def schedule_post(post_id: int, body: ScheduleRequest, db: Session = Depends(get_db)):
+async def schedule_post(post_id: int, body: ScheduleRequest, db: Session = Depends(get_db)):
     """
     Schedule a post for future publishing.
     """
@@ -187,6 +197,24 @@ def schedule_post(post_id: int, body: ScheduleRequest, db: Session = Depends(get
     # FIXED: logger is now defined so this won't crash
     logger.info(f"[SCHEDULE] Post {post_id} scheduled for {utc_scheduled_time.isoformat()} (UTC) - original input: {body.scheduled_time}")
     
+    # Emit socket event
+    await socket_manager.emit('post_status', {
+        'id': post_id,
+        'status': 'scheduled',
+        'title': post.content[:20] + '...' if post.content else 'Post',
+        'message': f'Post scheduled for {utc_scheduled_time.strftime("%b %d, %H:%M")}'
+    })
+    
+    # Create notification
+    notification = models.Notification(
+        post_id=post.id,
+        title="Post Scheduled",
+        message=f"Post scheduled for {utc_scheduled_time.strftime('%b %d, %H:%M')}",
+        type="info"
+    )
+    db.add(notification)
+    db.commit()
+
     return {
         "id": post.id,
         "status": post.status,

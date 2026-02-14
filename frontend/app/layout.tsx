@@ -1,6 +1,7 @@
 import './globals.css';
 import LayoutShell from '@/components/layout-shell';
 import { Toaster } from 'sonner';
+import { SocketProvider } from '@/components/socket-provider';
 
 export default function RootLayout({
   children,
@@ -10,10 +11,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <LayoutShell>
-          {children}
-        </LayoutShell>
-        <Toaster position="bottom-right" richColors />
+        <SocketProvider>
+          <LayoutShell>
+            {children}
+          </LayoutShell>
+          <Toaster position="bottom-right" richColors />
+        </SocketProvider>
       </body>
     </html>
   );

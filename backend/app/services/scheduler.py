@@ -72,6 +72,16 @@ async def scheduler_loop(interval_seconds: int = 30):
                         # if the scheduler restarts or if multiple ticks overlap (though single-instance lock prevents that).
                         logger.info(f"[SCHEDULER] ✓ Successfully processed post id={post.id}")
 
+                        # Create success notification
+                        notification = models.Notification(
+                            post_id=post.id,
+                            title="Post Published",
+                            message=f"Your post \"{post.content[:20]}...\" has been published successfully.",
+                            type="success"
+                        )
+                        db.add(notification)
+                        db.commit()
+
                     except Exception as e:
                         # Catch per-post exceptions so one failure doesn't stop others
                         # Logic: If publish_post_now failed, it should have already set status='failed'.
@@ -87,6 +97,15 @@ async def scheduler_loop(interval_seconds: int = 30):
                             if post.status != "failed" and post.status != "published":
                                 post.status = "failed"
                                 post.last_error = error_msg
+                                
+                                # Create failure notification
+                                notification = models.Notification(
+                                    post_id=post.id,
+                                    title="Publishing Failed",
+                                    message=f"Failed to publish post: {error_msg}",
+                                    type="error"
+                                )
+                                db.add(notification)
                                 db.commit()
                         except Exception as db_exc:
                             logger.error(f"[SCHEDULER] Critical DB error updating post {post.id}: {db_exc}")

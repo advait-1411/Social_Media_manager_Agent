@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSocket } from '@/components/socket-provider';
+import { NotificationsPopover } from '@/components/notifications-popover';
 
 const NAV_ITEMS = [
     { name: 'Home', icon: Home, href: '/' },
@@ -33,6 +35,8 @@ const NAV_ITEMS = [
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const { hasUnread, setHasUnread } = useSocket();
 
     return (
         <div className="flex h-screen w-full bg-[#FAFAFB] text-[#171717] overflow-hidden">
@@ -130,9 +134,16 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
                         <button className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition hover:rotate-12">
                             <HelpCircle className="w-5 h-5" />
                         </button>
-                        <button className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition hover:shake">
+                        <button
+                            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition hover:shake relative"
+                            onClick={() => setShowNotifications(!showNotifications)}
+                        >
                             <Bell className="w-5 h-5" />
+                            {hasUnread && (
+                                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                            )}
                         </button>
+                        <NotificationsPopover isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
