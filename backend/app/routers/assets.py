@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import models
 from ..services.image_gen import generate_images_service
-from ..services.prompt_builder import build_remix_prompt, ONIDA_SYSTEM_PROMPT
+from ..services.prompt_builder import build_remix_prompt
 from pydantic import BaseModel
 from typing import List, Optional
 import shutil
@@ -32,7 +32,7 @@ def _resolve_kit(brand_kit_id: Optional[int], db: Session) -> models.BrandKit | 
     """
     Resolve a BrandKit from the given id.
     If None, returns the is_default=True kit.
-    If no default exists, returns None (caller should fall back to ONIDA_SYSTEM_PROMPT).
+    If no default exists, returns None.
     Raises 404 if a specific id was given but not found.
     """
     if brand_kit_id is not None:
@@ -51,7 +51,7 @@ async def generate_assets(request: GenerateRequest, db: Session = Depends(get_db
 
         # -- Resolve brand kit & system prompt --
         kit = _resolve_kit(request.brand_kit_id, db)
-        system_prompt_to_use = (kit.system_prompt if kit else None) or ONIDA_SYSTEM_PROMPT
+        system_prompt_to_use = kit.system_prompt if kit else None
         resolved_kit_id = kit.id if kit else None
 
         # Assemble prompt with brand rules
@@ -62,7 +62,13 @@ async def generate_assets(request: GenerateRequest, db: Session = Depends(get_db
             f"user_prompt='{user_prompt[:60]}…' kit_id={resolved_kit_id}"
         )
 
-        paths = await generate_images_service(final_prompt, user_prompt, request.count, request.model)
+        paths = await generate_images_service(
+            prompt=final_prompt,
+            user_prompt=user_prompt,
+            count=request.count,
+            model=request.model,
+            logo_path=kit.logo_light_path if kit else None
+        )
 
         if not paths:
             raise HTTPException(
@@ -123,7 +129,7 @@ async def upload_asset(file: UploadFile = File(...), db: Session = Depends(get_d
         asset = models.Asset(
             file_path=path,
             asset_type="image" if ext.lower() in ['jpg','png','jpeg','webp'] else "video",
-            system_prompt=ONIDA_SYSTEM_PROMPT,
+            system_prompt=default_kit.system_prompt if default_kit else None,
             brand_kit_id=kit_id,
             meta_data={"original_name": file.filename, "source": "upload"}
         )
@@ -201,7 +207,7 @@ async def remix_asset(
         # Resolve system prompt: inherit from parent, fall back to global
         parent_system_prompt = (asset.system_prompt or "").strip() or None
         final_prompt = build_remix_prompt(request.prompt, parent_system_prompt)
-        resolved_system_prompt = (asset.system_prompt or "").strip() or ONIDA_SYSTEM_PROMPT
+        resolved_system_prompt = (asset.system_prompt or "").strip() or None
         logger.info(
             f"[ASSETS-REMIX] Assembled remix prompt ({len(final_prompt)} chars) "
             f"for user_prompt='{request.prompt[:60]}…' kit_id={resolved_kit_id}"
@@ -210,7 +216,11 @@ async def remix_asset(
         for i in range(num_variants):
             # --- 2A. Generate background via AI image-gen service ----------------
             logger.info(f"[ASSETS-REMIX] Generating background {i + 1}/{num_variants}…")
-            bg_paths = await generate_images_service(final_prompt, count=1)
+            bg_paths = await generate_images_service(
+                prompt=final_prompt,
+                count=1,
+                logo_path=kit.logo_light_path if kit else None
+            )
             if not bg_paths:
                 raise Exception("Background image generation returned no paths")
             bg_path = bg_paths[0]

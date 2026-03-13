@@ -8,11 +8,12 @@ from PIL import Image, ImageDraw, ImageFont
 from fastapi import HTTPException
 import logging
 
+from typing import Optional
 from .ai_assistant import get_image_overlay_plan
 
 logger = logging.getLogger(__name__)
 
-async def generate_images_service(prompt: str, user_prompt: str = "", count: int = 1, model: str = "google/google/gemini-2.5-flash-image"):
+async def generate_images_service(prompt: str, user_prompt: str = "", count: int = 1, model: str = "google/google/gemini-2.5-flash-image", logo_path: Optional[str] = None):
     """
     Generates images using OpenRouter API with Gemini 2.5 Flash Image model,
     and automatically overlays the ONIDA logo and a generated subtle caption.
@@ -142,8 +143,7 @@ async def generate_images_service(prompt: str, user_prompt: str = "", count: int
                 margin = int(img_w * 0.05) # 5% margin
                 
                 # 1. Overlay Logo
-                logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'onida_logo.png')
-                if os.path.exists(logo_path):
+                if logo_path and os.path.exists(logo_path):
                     with Image.open(logo_path) as logo:
                         if logo.mode != 'RGBA':
                             logo = logo.convert('RGBA')
@@ -176,8 +176,8 @@ async def generate_images_service(prompt: str, user_prompt: str = "", count: int
                         # Paste using alpha channel
                         image.paste(logo_resized, pos, logo_resized)
                         logger.info(f"Ovelayed ONIDA logo at {pos_str}")
-                else:
-                    logger.warning(f"ONIDA logo not found at {logo_path}")
+                elif logo_path:
+                    logger.warning(f"Logo not found at {logo_path}")
 
                 # 2. Overlay Caption
                 caption_text = overlay_plan.get("caption_text")

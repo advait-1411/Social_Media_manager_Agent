@@ -71,6 +71,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
             }
         });
 
+        socketInstance.on('batch_posts_created', (data: { count: number, primary_post_id: number, draft_count: number, message: string }) => {
+            console.log("Received batch_posts_created event:", data);
+            toast.success("🎉 Posts saved! Your batch drafts are ready in the queue.", {
+                description: data.message,
+                duration: 5000,
+            });
+        });
+
         setSocket(socketInstance);
 
         return () => {

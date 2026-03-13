@@ -46,6 +46,7 @@ This document tracks which features are **fully implemented**, **partially imple
 | Post Now                          | ✅ **IMPLEMENTED** | Creates post and immediately publishes to Instagram via Composio (with Graph API fallback) with automatic image hosting. Handles single images, carousels, and reels. |
 | Schedule Post                     | ✅ **IMPLEMENTED** | Schedule button opens a date-time picker modal. Successfully saves scheduled time to backend and updates status to "scheduled".                                                            |
 | Post Status Updates               | ✅ **IMPLEMENTED** | Real-time status updates via polling and socket notifications.                                                                                                                             |
+| Bulk AI Creation Flow            | ✅ **IMPLEMENTED** | Generate multiple variations (image + caption) from one prompt. Supports committing them as a batch (1 primary + drafts). |
 | Error Handling                    | ✅ **IMPLEMENTED** | Comprehensive error messages for token expiration and API failures.                                                                                                                        |
 
 ---
@@ -164,15 +165,17 @@ This document tracks which features are **fully implemented**, **partially imple
 | `Agent PublishJob Layer`       | ✅ **IMPLEMENTED** | `publish_post_now` uses **Composio** (`post_image_via_composio`, `post_carousel_via_composio`) as the **primary** Instagram posting path for single images and carousels. Falls back to `instagram_publishing.py` on Composio error. Both manual and scheduled publishes use the same Composio-first flow. |
 | `POST /api/posts/create-and-publish` | ✅ **IMPLEMENTED** | Creates a post (single, carousel, or reel) and immediately triggers publishing via Composio/fallback. Returns post ID and publishing status/errors. |
 | `Brand Kit CRUD`               | ✅ **IMPLEMENTED** | **6 Endpoints**: List, Create, Get, Update, Delete, and Upload Logo. Linked to assets with automatic startup seeding for existing data. |
+| `POST /api/posts/generate-bulk-variations` | ✅ **IMPLEMENTED** | Generates N image/caption variations in one call with structural diversity hints. |
+| `POST /api/posts/batch-create` | ✅ **IMPLEMENTED** | Commits multiple variations as posts (1 primary, rest drafts) in one transaction. |
 | `Agent Testing Stub`           | ✅ **IMPLEMENTED** | Local endpoint at `/agent/instagram/publish` for Phase 1 end-to-end testing. |
 
 ---
 
 ## 📋 Summary Statistics
 
-- **Fully Implemented**: 54 features (+6 since last update)
+- **Fully Implemented**: 56 features (+2 since last update)
 - **Partially Implemented**: 3 features
-- **Not Implemented**: 19 features
+- **Not Implemented**: 18 features
 - **Mock Data Only**: 5 features
 
 **Total Features Tracked**: 77
@@ -185,6 +188,7 @@ This document tracks which features are **fully implemented**, **partially imple
 - ✅ **Instagram Comment Management**: Full suite for syncing, analyzing (sentiment/category), and replying to comments with AI assistance.
 - ✅ **Draft Library**: File-based post template system for multi-platform content planning.
 - ✅ **Agentic Publishing (Phase 1)**: Integrated Composio MCP for Instagram and established a local testing stub for agentic flows.
+- ✅ **Bulk AI Creation Flow**: New endpoints for generating and batch-committing multiple post variations.
 - ✅ **Campaign Generator (Bulk Commit)**: Enhanced campaign generation with bulk commit to draft posts and brand guideline enforcement.
 - ✅ **Configurable Scheduler**: Background worker now supports `.env` based interval and toggle settings.
 

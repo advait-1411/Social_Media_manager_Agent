@@ -8,6 +8,9 @@ from datetime import datetime, date, timezone
 import logging
 import pytz
 from ..socket_manager import socket_manager
+from pydantic import BaseModel, Field
+from ..services.image_gen import generate_images_service
+from ..services.ai_assistant import generate_caption
 
 # Define logger
 logger = logging.getLogger(__name__)
@@ -281,3 +284,200 @@ async def schedule_post(post_id: int, body: ScheduleRequest, db: Session = Depen
         "status": post.status,
         "scheduled_time": post.scheduled_time.isoformat()
     }
+
+
+# --- Models for Bulk Variation and Batch Create ---
+
+class AssetOut(BaseModel):
+    id: int
+    file_path: str
+    asset_type: str
+    prompt: Optional[str] = None
+    system_prompt: Optional[str] = None
+    tags: Optional[List[str]] = []
+    created_at: datetime
+    meta_data: Optional[dict] = {}
+    brand_kit_id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+class BulkVariationRequest(BaseModel):
+    prompt: str
+    brand_kit_id: Optional[int] = None
+    count: int = Field(default=3, ge=1, le=5)
+    platforms: List[str] = ["instagram"]
+    tone: Optional[str] = "professional"
+
+class VariationItem(BaseModel):
+    asset: AssetOut
+    caption: str
+    brand_kit_id: Optional[int]
+
+class BulkVariationResponse(BaseModel):
+    variations: List[VariationItem]
+    brand_kit_name: Optional[str]
+    prompt_used: str
+
+class BatchVariationItem(BaseModel):
+    asset_id: int
+    caption: str
+    is_primary: bool = False
+
+class BatchCreateRequest(BaseModel):
+    variations: List[BatchVariationItem]
+    channels: List[int]
+    platforms: List[str]
+    brand_kit_id: Optional[int] = None
+
+class BatchCreateResponse(BaseModel):
+    primary_post_id: int
+    draft_post_ids: List[int]
+    total_created: int
+
+
+@router.post("/generate-bulk-variations", response_model=BulkVariationResponse)
+async def generate_bulk_variations(request: BulkVariationRequest, db: Session = Depends(get_db)):
+    try:
+        if not request.prompt or not request.prompt.strip():
+            raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+            
+        kit = None
+        system_prompt = None
+        logo_path = None
+        kit_name = None
+        
+        if request.brand_kit_id is not None:
+            kit = db.query(models.BrandKit).filter(models.BrandKit.id == request.brand_kit_id).first()
+            if not kit:
+                raise HTTPException(status_code=404, detail="Brand kit not found")
+            system_prompt = kit.system_prompt
+            logo_path = kit.logo_light_path
+            kit_name = kit.name
+            
+        if system_prompt:
+            final_prompt = f"{system_prompt}\n\n{request.prompt}"
+        else:
+            final_prompt = request.prompt
+            
+        try:
+            generated_paths = await generate_images_service(
+                prompt=final_prompt,
+                user_prompt=request.prompt,
+                count=request.count,
+                model="google/gemini-2.5-flash-image",
+                logo_path=logo_path
+            )
+        except Exception as e:
+            logger.error(f"Image generation failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+            
+        if not generated_paths:
+             raise HTTPException(status_code=500, detail="Image generation failed: returned no paths")
+
+        assets = []
+        for p in generated_paths:
+            asset = models.Asset(
+                file_path=p,
+                asset_type="image",
+                prompt=request.prompt,
+                system_prompt=system_prompt,
+                brand_kit_id=request.brand_kit_id if kit else None,
+                meta_data={"source": "bulk_variation"}
+            )
+            db.add(asset)
+            assets.append(asset)
+            
+        db.commit()
+        for a in assets:
+            db.refresh(a)
+            
+        # Generate captions
+        variations = []
+        platform = request.platforms[0] if request.platforms else "instagram"
+        
+        for i, asset in enumerate(assets):
+            caption = ""
+            try:
+                caption = await generate_caption(
+                    prompt=request.prompt,
+                    platform=platform,
+                    tone=request.tone or "professional",
+                    variation_hint=f"Variation {i+1} of {request.count}"
+                )
+            except Exception as e:
+                logger.warning(f"Variation {i+1} caption failed: {e}")
+                
+            variations.append(VariationItem(
+                asset=asset,
+                caption=caption,
+                brand_kit_id=request.brand_kit_id if kit else None
+            ))
+            
+        return BulkVariationResponse(
+            variations=variations,
+            brand_kit_name=kit_name,
+            prompt_used=final_prompt
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error in generate-bulk-variations: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch-create", response_model=BatchCreateResponse)
+async def batch_create_posts(request: BatchCreateRequest, db: Session = Depends(get_db)):
+    if not request.variations:
+        raise HTTPException(status_code=400, detail="At least 1 variation required")
+        
+    primary_count = sum(1 for v in request.variations if v.is_primary)
+    
+    # Ensure exactly 1 is primary
+    if primary_count == 0:
+        request.variations[0].is_primary = True
+    elif primary_count > 1:
+        raise HTTPException(status_code=400, detail="Exactly 1 variation can be marked as primary")
+        
+    posts = []
+    
+    for variation in request.variations:
+        asset = db.query(models.Asset).filter(models.Asset.id == variation.asset_id).first()
+        if not asset:
+            raise HTTPException(status_code=404, detail=f"Asset ID {variation.asset_id} not found")
+            
+        post = models.Post(
+            content=variation.caption,
+            media_assets=[variation.asset_id],
+            channels=request.channels,
+            status="draft",
+            platform_settings={
+                "is_primary_variation": variation.is_primary,
+                "brand_kit_id": request.brand_kit_id,
+                "platforms": request.platforms
+            }
+        )
+        db.add(post)
+        posts.append(post)
+        
+    db.commit()
+    for post in posts:
+        db.refresh(post)
+        
+    primary_post = next((p for p, v in zip(posts, request.variations) if v.is_primary), posts[0])
+    draft_post_ids = [p.id for p in posts if p.id != primary_post.id]
+
+    await socket_manager.emit("batch_posts_created", {
+        "count": len(posts),
+        "primary_post_id": primary_post.id,
+        "draft_count": len(posts) - 1,
+        "message": f"{len(posts)} variations saved. 1 active, {len(posts) - 1} drafted."
+    })
+    
+    return BatchCreateResponse(
+        primary_post_id=primary_post.id,
+        draft_post_ids=draft_post_ids,
+        total_created=len(posts)
+    )
+

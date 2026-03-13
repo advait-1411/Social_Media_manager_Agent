@@ -20,8 +20,8 @@ VelvetQueue is a high-performance, full-stack social media content management pl
 
 VelvetQueue bridge the gap between AI generation and social media management:
 
-- **AI Image Generation**: Create stunning visuals using Gemini 2.5 Flash via OpenRouter. Includes an **AI-powered Brand Overlay Engine** that automatically places the ONIDA logo and generates context-aware minimalist captions based on the scene.
-- **Asset Remix (Style with AI)**: Transform existing product photos into professional lifestyle shots. Generates an AI background from a prompt and composites the original product on top with clean alpha-masking.
+- **AI Image Generation**: Create stunning visuals using Gemini 2.5 Flash via OpenRouter. Includes an **AI-powered Brand Overlay Engine** that automatically places logos and generates context-aware minimalist captions based on the scene at runtime (no hardcoded fallbacks).
+- **Bulk AI Creation Flow**: Generate multiple image/caption variations from a single prompt in one call. Select the best ones and commit them as a set of draft posts (1 primary + multiple drafts) with a single click.
 - **Campaign Generator**: Generate full multi-platform content campaigns (2–5 strategies, each with 3–10 post blueprints) from a single prompt. Review in a Kanban canvas, edit captions, and commit to draft posts in bulk.
 - **Draft Library**: Save and manage post templates as JSON files, allowing for easy promotion to real posts across multiple platforms.
 - **AI Caption & Comment Assistant**: Generate platform-optimized captions and AI-suggested replies for Instagram comments based on sentiment analysis (Azure OpenAI), backed by **Composio MCP + Instagram Graph API fallback** for fetching and replying to real comments.

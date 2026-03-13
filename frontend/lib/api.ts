@@ -119,6 +119,26 @@ export const commentsApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Variation and Bulk Generation types
+// ---------------------------------------------------------------------------
+
+export type VariationItem = {
+  asset: {
+    id: number;
+    file_path: string;
+    asset_type: string;
+    prompt?: string | null;
+    system_prompt?: string | null;
+    tags?: string[] | null;
+    created_at: string;
+    meta_data?: Record<string, any> | null;
+    brand_kit_id?: number | null;
+  };
+  caption: string;
+  brand_kit_id?: number | null;
+};
+
 // Posts API
 export const postsApi = {
   getAll: async (status?: string) => {
@@ -164,6 +184,34 @@ export const postsApi = {
       status
     });
     return apiFetch(`/api/posts/calendar?${params}`);
+  },
+
+  generateBulkVariations: async (params: {
+    prompt: string;
+    brand_kit_id?: number | null;
+    count?: number;
+  }): Promise<VariationItem[]> => {
+    const response = await apiFetch<{ variations: VariationItem[] }>('/api/posts/generate-bulk-variations', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    return response.variations;
+  },
+
+  batchCreate: async (payload: {
+    variations: Array<{
+      asset_id: number;
+      caption: string;
+      is_primary: boolean;
+    }>;
+    channels?: number[];
+    platforms?: string[];
+    brand_kit_id?: number | null;
+  }): Promise<any> => {
+    return apiFetch('/api/posts/batch-create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 };
 

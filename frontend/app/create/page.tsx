@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import {
     Instagram, Linkedin, Twitter,
     Image as ImageIcon, Smile, Hash,
-    Calendar, Send, ChevronDown, Check, MoreHorizontal, Loader2, X, Trash2, BookMarked, Megaphone, Palette, ArrowLeft, Image as ImageIcon2
+    Calendar, Send, ChevronDown, Check, MoreHorizontal, Loader2, X, Trash2, BookMarked, Megaphone, Palette, ArrowLeft, Image as ImageIcon2,
+    Sparkles, PenLine, Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 import { connectorsApi, assetsApi, postsApi, aiApi, draftsApi, campaignsApi, type DraftMeta, type DraftFile, type CampaignMeta, type CampaignFile } from '@/lib/api';
 import { ScheduleModal } from '@/components/schedule-modal';
 import { ImageEditorModal } from '@/components/image-editor-modal';
+import { useBulkJob } from '@/contexts/bulk-job-context';
 
 const CHANNELS = [
     { id: 'instagram', name: 'Instagram', icon: Instagram, color: 'text-pink-600', active: true },
@@ -72,6 +74,17 @@ export default function CreatePage() {
     const [showImageEditor, setShowImageEditor] = useState(false);
     const [editorImageSrc, setEditorImageSrc] = useState<string>('');
 
+    // ── AI Generate mode state ──────────────────────────────────────────────
+    const { jobState, triggerBulkGenerate, clearJob } = useBulkJob();
+    const [createMode, setCreateMode] = useState<'manual' | 'ai'>('manual');
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [aiCount, setAiCount] = useState(3);
+    const [aiBrandKitId, setAiBrandKitId] = useState<number | null>(null);
+    const [selectedPrimaryIndex, setSelectedPrimaryIndex] = useState(0);
+    const [isBatchSaving, setIsBatchSaving] = useState(false);
+    const [aiBrandKits, setAiBrandKits] = useState<BrandKit[]>([]);
+    // ───────────────────────────────────────────────────────────────────────
+
     useEffect(() => {
         connectorsApi.getAll()
             .then((data: any) => setBackendChannels(data as Channel[]))
@@ -86,6 +99,12 @@ export default function CreatePage() {
                 console.error("Failed to fetch assets", err);
                 toast.error('Failed to load assets');
             });
+
+        // Fetch brand kits for AI mode dropdown
+        fetch('http://localhost:8000/api/brand-kits/')
+            .then(r => r.json())
+            .then((kits: BrandKit[]) => setAiBrandKits(kits))
+            .catch(() => { /* silently fail */ });
     }, []);
 
     // Fetch drafts, campaigns & brand kits when closet opens
@@ -382,6 +401,33 @@ export default function CreatePage() {
         }
     };
 
+    const handleBatchSave = async () => {
+        if (!jobState.variations.length) return;
+        setIsBatchSaving(true);
+        try {
+            const channelIds: number[] = [];
+            const ig = backendChannels.find(c => c.platform === 'instagram');
+            if (ig) channelIds.push(ig.id);
+
+            await postsApi.batchCreate({
+                variations: jobState.variations.map((v, i) => ({
+                    asset_id: v.asset.id,
+                    caption: v.caption,
+                    is_primary: i === selectedPrimaryIndex,
+                })),
+                channels: channelIds,
+                platforms: selectedChannels,
+                brand_kit_id: aiBrandKitId,
+            });
+            toast.success('All variations saved as drafts!');
+            clearJob();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save drafts');
+        } finally {
+            setIsBatchSaving(false);
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -392,42 +438,79 @@ export default function CreatePage() {
 
             {/* Editor Column */}
             <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
-                {/* Channel Selector */}
-                <div className="p-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Post To:</span>
-                    <div className="flex gap-2">
-                        <LayoutGroup>
-                            {CHANNELS.map(ch => {
-                                const isSelected = selectedChannels.includes(ch.id);
-                                return (
-                                    <button
-                                        key={ch.id}
-                                        onClick={() => toggleChannel(ch.id)}
-                                        className={cn(
-                                            "relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors z-0",
-                                            isSelected
-                                                ? "border-blue-200 text-gray-900"
-                                                : "bg-transparent border-transparent text-gray-400 hover:bg-gray-100"
-                                        )}
-                                    >
-                                        {isSelected && (
-                                            <motion.div
-                                                layoutId="selectedChannelBg"
-                                                className="absolute inset-0 bg-white rounded-full shadow-sm ring-1 ring-blue-100 -z-10"
-                                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                            />
-                                        )}
-                                        <ch.icon className={cn("w-4 h-4 relative z-10", isSelected ? ch.color : "text-gray-400")} />
-                                        <span className="relative z-10">{ch.name}</span>
-                                        {isSelected && <Check className="w-3 h-3 ml-1 text-blue-500 relative z-10" />}
-                                    </button>
-                                );
-                            })}
-                        </LayoutGroup>
+                {/* Mode Toggle + Channel Selector */}
+                <div className="px-4 pt-4 pb-0 bg-gray-50/50 border-b border-gray-100">
+                    <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-3">
+                        <button
+                            onClick={() => setCreateMode('manual')}
+                            className={cn(
+                                'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all',
+                                createMode === 'manual'
+                                    ? 'bg-white shadow-sm text-gray-900 ring-1 ring-gray-200'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            )}
+                        >
+                            <PenLine className="w-3.5 h-3.5" />
+                            Manual
+                        </button>
+                        <button
+                            onClick={() => {
+                                setCreateMode('ai');
+                                setAiPrompt('');
+                                setSelectedPrimaryIndex(0);
+                            }}
+                            className={cn(
+                                'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all',
+                                createMode === 'ai'
+                                    ? 'bg-white shadow-sm text-gray-900 ring-1 ring-gray-200'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            )}
+                        >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            AI Generate
+                        </button>
                     </div>
+
+                    {/* Channel row — manual mode only */}
+                    {createMode === 'manual' && (
+                        <div className="flex items-center gap-3 pb-3">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Post To:</span>
+                            <div className="flex gap-2">
+                                <LayoutGroup>
+                                    {CHANNELS.map(ch => {
+                                        const isSelected = selectedChannels.includes(ch.id);
+                                        return (
+                                            <button
+                                                key={ch.id}
+                                                onClick={() => toggleChannel(ch.id)}
+                                                className={cn(
+                                                    "relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors z-0",
+                                                    isSelected
+                                                        ? "border-blue-200 text-gray-900"
+                                                        : "bg-transparent border-transparent text-gray-400 hover:bg-gray-100"
+                                                )}
+                                            >
+                                                {isSelected && (
+                                                    <motion.div
+                                                        layoutId="selectedChannelBg"
+                                                        className="absolute inset-0 bg-white rounded-full shadow-sm ring-1 ring-blue-100 -z-10"
+                                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                                    />
+                                                )}
+                                                <ch.icon className={cn("w-4 h-4 relative z-10", isSelected ? ch.color : "text-gray-400")} />
+                                                <span className="relative z-10">{ch.name}</span>
+                                                {isSelected && <Check className="w-3 h-3 ml-1 text-blue-500 relative z-10" />}
+                                            </button>
+                                        );
+                                    })}
+                                </LayoutGroup>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Composer Body */}
+                {/* Composer Body — Manual mode only */}
+                {createMode === 'manual' && (
                 <div className="flex-1 p-6 overflow-y-auto space-y-6">
 
                     {/* Caption */}
@@ -536,8 +619,167 @@ export default function CreatePage() {
                         </motion.div>
                     </div>
                 </div>
+                )}
 
-                {/* Footer Actions */}
+                {/* AI Generate Mode body */}
+                {createMode === 'ai' && (
+                    <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+                        {/* ── PROMPT INPUT (shown when idle or error) ── */}
+                        {(jobState.status === 'idle' || jobState.status === 'error') && (
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                                        <Sparkles className="w-4 h-4 text-purple-500" />
+                                        Describe your post
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        className="w-full p-4 rounded-xl border border-gray-200 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-base placeholder:text-gray-400 transition-shadow shadow-sm"
+                                        placeholder="Describe the visual and mood of your post…"
+                                        value={aiPrompt}
+                                        onChange={(e) => setAiPrompt(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 flex-wrap">
+                                    <div className="flex-1 min-w-[160px] space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Brand Kit</label>
+                                        <select
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-purple-400"
+                                            value={aiBrandKitId ?? ''}
+                                            onChange={(e) => setAiBrandKitId(e.target.value ? Number(e.target.value) : null)}
+                                        >
+                                            <option value="">No Brand Kit</option>
+                                            {aiBrandKits.map(k => (
+                                                <option key={k.id} value={k.id}>{k.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-medium text-gray-500">Variations</label>
+                                        <select
+                                            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-purple-400"
+                                            value={aiCount}
+                                            onChange={(e) => setAiCount(Number(e.target.value))}
+                                        >
+                                            {[2, 3, 4].map(n => (
+                                                <option key={n} value={n}>{n}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {jobState.status === 'error' && (
+                                    <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                                        ⚠️ {jobState.error}
+                                    </p>
+                                )}
+
+                                <button
+                                    disabled={!aiPrompt.trim()}
+                                    onClick={() => {
+                                        if (!aiPrompt.trim()) return;
+                                        triggerBulkGenerate({ prompt: aiPrompt, brand_kit_id: aiBrandKitId, count: aiCount });
+                                    }}
+                                    className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold text-sm hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    Generate Variations
+                                </button>
+                            </motion.div>
+                        )}
+
+                        {/* ── GENERATING STATE ── */}
+                        {jobState.status === 'generating' && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                                <div className="text-center py-4 space-y-3">
+                                    <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto" />
+                                    <p className="text-sm font-medium text-gray-700">Generating {aiCount} variations…</p>
+                                    <p className="text-xs text-gray-400">This takes ~20–30s. Feel free to navigate away — your results will be here when you return.</p>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <motion.div
+                                        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+                                        animate={{ x: ['-100%', '100%'] }}
+                                        transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* ── VARIATION CARDS ── */}
+                        {jobState.status === 'done' && jobState.variations.length > 0 && (
+                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Choose a variation</p>
+
+                                {jobState.variations.map((variation, i) => {
+                                    const isActive = media?.id === variation.asset.id;
+                                    const thumbUrl = `http://localhost:8000/${variation.asset.file_path.replace(/^\.?\//, '')}`;
+                                    return (
+                                        <motion.div
+                                            key={variation.asset.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.06 }}
+                                            className={cn(
+                                                'flex gap-4 p-4 rounded-xl border transition-all',
+                                                isActive
+                                                    ? 'border-purple-400 bg-purple-50 ring-1 ring-purple-300'
+                                                    : 'border-gray-200 bg-white hover:border-purple-200'
+                                            )}
+                                        >
+                                            <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                                                <img src={thumbUrl} alt={`Variation ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
+                                                <p className="text-sm text-gray-700 line-clamp-2">
+                                                    {variation.caption.slice(0, 100)}{variation.caption.length > 100 ? '…' : ''}
+                                                </p>
+                                                <button
+                                                    onClick={() => {
+                                                        setCaption(variation.caption);
+                                                        setMedia(variation.asset as unknown as Asset);
+                                                        setSelectedPrimaryIndex(i);
+                                                        setCreateMode('manual');
+                                                    }}
+                                                    className={cn(
+                                                        'self-start text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors',
+                                                        isActive
+                                                            ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                    )}
+                                                >
+                                                    {isActive ? '✓ Selected' : 'Use This Variation'}
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+
+                                <button
+                                    onClick={handleBatchSave}
+                                    disabled={isBatchSaving}
+                                    className="w-full py-2.5 border-2 border-dashed border-gray-300 text-gray-600 rounded-xl font-medium text-sm hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    {isBatchSaving ? 'Saving…' : '💾 Save All as Draft Posts'}
+                                </button>
+
+                                <button
+                                    onClick={() => clearJob()}
+                                    className="w-full text-center text-xs text-gray-400 hover:text-gray-700 transition-colors py-1"
+                                >
+                                    ← Generate new variations
+                                </button>
+                            </motion.div>
+                        )}
+
+                    </div>
+                )}
+
+                {/* Footer Actions — Manual mode only */}
+                {createMode === 'manual' && (
                 <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/30">
                     <div className="flex gap-2 items-center">
                         <button onClick={() => handlePost('draft')} disabled={isSubmitting} className="text-gray-500 text-sm font-medium hover:text-gray-900 px-2 transition-colors">
@@ -576,6 +818,7 @@ export default function CreatePage() {
                         </div>
                     </div>
                 </div>
+                )}
             </div>
 
             {/* Preview Column */}

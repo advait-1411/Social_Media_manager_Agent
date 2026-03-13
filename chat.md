@@ -129,6 +129,10 @@ The page follows a split-view layout:
     - **Logic**: Normalizes time to UTC (assuming IST input) and updates the record.
 - **`POST /api/posts/{id}/publish`**:
     - **Logic**: Manual trigger for an existing post.
+- **`POST /api/posts/generate-bulk-variations`**: 
+    - **Logic**: Generates N images via `generate_images_service` and N captions. Returns a list of variations. Images are saved as `Asset` rows.
+- **`POST /api/posts/batch-create`**: 
+    - **Logic**: Commits multiple variations as `Post` objects in one transaction. Fires `batch_posts_created` socket event.
 
 ### Data Storage
 - **`media_assets`**: Stored as a `JSON` column in the `Post` model (list of integer CIDR IDs).
@@ -147,33 +151,26 @@ The page follows a split-view layout:
     - `brand_kit_id`: Optional ID to apply specific brand rules/logos.
 - **Returns**: A list of full `Asset` objects.
 - **Images per call**: Generates exactly `count` images.
-- **Variation Logic**: A single call generates multiple *visual* variations of the same prompt. It does not currently generate unique captions for each; however, the `Brand Overlay Engine` generates a unique minimalist caption overlay for each image based on its specific generated scene.
+- **Variation Logic**: A single call generates multiple *visual* variations of the same prompt. In the Bulk Flow, it also generates unique captions for each using GPT; the `Brand Overlay Engine` generates a unique minimalist caption overlay for each image based on its specific generated scene.
+- **Brand Rules**: The `ONIDA_SYSTEM_PROMPT` fallback has been removed. Prompts and logos are fetched exclusively from the `BrandKit` at runtime.
 
 ---
 
-## 7. Constraints & Notes for New Create Flow
+## 7. Implementation Status (Bulk Create Flow)
 
-### Mode Toggle
-- **Minimal Change**: Introduce a "Switch" or "Tabs" component above the Left Panel to toggle between `Manual` and `Bulk AI` modes. 
-- The `Manual` mode remains exactly as is.
-- The `Bulk AI` mode replaces the caption/media area with a single "Global Prompt" input and a "Generate Variations" result grid.
 
-### New API Requirements
-- A new endpoint `POST /api/posts/generate-bulk-variations` is needed. This would:
-    1. Call image generation for N images.
-    2. For each image, call GPT to generate a unique platform-optimized caption.
-    3. Return a list of `{ asset, caption }` pairs.
+### Endpoints Implemented
+- **`POST /api/posts/generate-bulk-variations`**: Completed and verified. Generates $N$ `Asset` records and matching captions.
+- **`POST /api/posts/batch-create`**: Completed and verified. Commits these variations to the `posts` table as drafts (1 primary, others secondary).
 
-### Persistence Logic (Pick 1 -> Auto-draft)
-- When "Bulk Generating", the variations should likely stay in frontend state ("Transients") until the user "Commits".
-- Clicking "Commit" should:
-    - Create a "Scheduled" or "Draft" post for the primary selection.
-    - Automatically create "Draft" posts for all other variations so they aren't lost and appear in the user's library.
+### Persistence Logic
+- **Transient Assets**: Variations are created as real `Asset` rows immediately during the generation step so they have valid IDs and local file paths.
+- **Batch Committing**: The `batch-create` endpoint moves these from "floating assets" to structured "Post drafts" in one transaction. 
+- **Socket IO**: Fires `batch_posts_created` to notify the UI to refresh the calendar or list view.
 
-### Reusable UI
-- The `Asset` grid card in the closet can be reused for the variation picker.
-- The `Channel` selector state and component can be reused globally.
-
-### Risks
-- **Carousel Flow**: Ensure that adding "AI Mode" doesn't break the ability to manually select carousels (which will require upgrading the `media` state to an array).
-- **Socket Conflicts**: Real-time status updates must handle bulk creation without flooding the UI with toast notifications.
+### UI Integration Notes
+- **Mode Toggle**: The Create page (frontend) uses a `createMode` state (`'manual' | 'ai'`) to cleanly separate the standard composer from the Bulk AI generator.
+- **Bulk Job Context**: The frontend employs a global `BulkJobContext` allowing the slow generation request (`generateBulkVariations`) to run globally. Users can trigger generation, navigate away from the Create page to avoid locking their browser, and see toasts globally when generation completes.
+- **Background Safety**: By decoupling the async call from the page component lifecycle, we eliminate abandoned promises if the React component unmounts.
+- **Payload Handling**: The `VariationItem` response model includes the `AssetOut` object and the `caption`, allowing the frontend to render the collection immediately for user selection.
+- **Batch Committing**: Using the `handleBatchSave` feature, users can commit all variations directly to unassigned drafts. The `is_primary` flag in the batch request determines which Post record is the "active" one currently loaded in the composer, while throwing the rest into the Draft Library.

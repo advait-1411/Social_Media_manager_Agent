@@ -65,36 +65,6 @@ app.mount("/generated_images", StaticFiles(directory="generated_images"), name="
 app.mount("/brand_kit_logos", StaticFiles(directory="brand_kit_logos"), name="brand_kit_logos")
 
 
-def seed_default_brand_kit():
-    """Create the default ONIDA brand kit on first startup and link all orphan assets to it."""
-    from .database import SessionLocal
-    from .models.models import BrandKit, Asset
-    from .services.prompt_builder import ONIDA_SYSTEM_PROMPT
-
-    db = SessionLocal()
-    try:
-        existing = db.query(BrandKit).filter_by(is_default=True).first()
-        if not existing:
-            kit = BrandKit(
-                name="ONIDA",
-                description="Default ONIDA brand kit",
-                system_prompt=ONIDA_SYSTEM_PROMPT,
-                is_default=True,
-            )
-            db.add(kit)
-            db.commit()
-            db.refresh(kit)
-            # Retroactively assign all existing assets that have no kit
-            db.query(Asset).filter(Asset.brand_kit_id == None).update(
-                {"brand_kit_id": kit.id}
-            )
-            db.commit()
-            logging.info(f"[BRAND_KIT] Seeded default ONIDA kit (id={kit.id}) and assigned to existing assets.")
-    except Exception as e:
-        logging.error(f"[BRAND_KIT] Failed to seed default kit: {e}")
-        db.rollback()
-    finally:
-        db.close()
 
 # Routers
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
@@ -117,9 +87,6 @@ async def startup_event():
     """Initialize background services on startup"""
     from .services.scheduler import start_scheduler
 
-    # Seed default ONIDA brand kit if not already present
-    seed_default_brand_kit()
-    
     # Read scheduler configuration
     enabled_str = os.getenv("SCHEDULER_ENABLED", "true").lower()
     enabled = enabled_str in ["true", "1", "yes"]

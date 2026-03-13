@@ -2,6 +2,7 @@ import './globals.css';
 import LayoutShell from '@/components/layout-shell';
 import { Toaster } from 'sonner';
 import { SocketProvider } from '@/components/socket-provider';
+import { BulkJobProvider } from '@/contexts/bulk-job-context';
 
 export default function RootLayout({
   children,
@@ -12,9 +13,11 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <SocketProvider>
-          <LayoutShell>
-            {children}
-          </LayoutShell>
+          <BulkJobProvider>
+            <LayoutShell>
+              {children}
+            </LayoutShell>
+          </BulkJobProvider>
           <Toaster position="bottom-right" richColors />
         </SocketProvider>
       </body>

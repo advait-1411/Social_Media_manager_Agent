@@ -30,7 +30,7 @@ def get_openrouter_client():
         api_key=api_key
     )
 
-async def generate_caption(prompt: str, platform: str = "instagram", tone: str = "professional") -> str:
+async def generate_caption(prompt: str, platform: str = "instagram", tone: str = "professional", variation_hint: Optional[str] = None) -> str:
     """
     Generate a social media caption using OpenRouter.
     """
@@ -55,7 +55,7 @@ Rules:
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Generate a caption for: {prompt}"}
+                {"role": "user", "content": f"Generate a caption for: {prompt}" + (f"\n\nHint for structural diversity: {variation_hint}" if variation_hint else "")}
             ],
             max_tokens=512,  # captions + hashtags
             temperature=0.7
