@@ -1,0 +1,59 @@
+{
+  "id": "c248a5ff-544e-419b-b5f3-9295e0c2d087",
+  "title": "Televisions for Everyone",
+  "strategy": "This campaign highlights the accessibility and variety of televisions offered by the brand, aiming to connect with diverse consumers who seek quality entertainment in their homes. By showcasing different models that cater to various lifestyles and preferences, we emphasize that there's a perfect TV for everyone.",
+  "created_at": "2026-02-25 18:12:33.076737+00:00",
+  "updated_at": "2026-02-25 18:12:33.076737+00:00",
+  "business_context": "electronics",
+  "guidelines": {
+    "tone": "professional",
+    "legal_footer": "gen ai"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "b2e9e025-9d1d-48a7-9f85-4a55e6c0dd03",
+      "platform": "instagram",
+      "asset_id": 12,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "\u2728 Find your perfect viewing experience! Our TVs bring the cinema to your living room, no matter your style. \ud83c\udf1f #TelevisionsForEveryone #HomeEntertainment #YourBrand gen ai",
+      "hashtags": [
+        "#TelevisionsForEveryone",
+        "#HomeEntertainment",
+        "#YourBrand"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "5c1c7b0c-b5a3-4b4b-bd8e-0e080d3f5e8c",
+      "platform": "instagram",
+      "asset_id": 13,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "\ud83c\udf89 Step into a world of stunning visuals! Our range of TVs is designed for every taste and budget. Which one will you choose? \ud83d\udda5\ufe0f #YourBrand #TVForAll #EntertainmentAtHome gen ai",
+      "hashtags": [
+        "#YourBrand",
+        "#TVForAll",
+        "#EntertainmentAtHome"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "7c0f8265-0a3b-4e89-9fd2-3c941c8a8c4f",
+      "platform": "instagram",
+      "asset_id": 14,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "\ud83d\udcfa Why settle for less? Our TVs offer unparalleled quality for every home. Discover the perfect fit for you! \ud83d\udc9a #YourBrand #QualityViewing #TVForEveryone gen ai",
+      "hashtags": [
+        "#YourBrand",
+        "#QualityViewing",
+        "#TVForEveryone"
+      ],
+      "status": "blueprint"
+    }
+  ]
+}

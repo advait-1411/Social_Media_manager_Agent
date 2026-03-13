@@ -1,0 +1,9 @@
+1] Composio insta post
+
+curl -X POST "http://localhost:8000/agent/instagram/composio-post" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_url": "https://iili.io/qKi0vKg.jpg",
+    "caption": "Your caption here #hashtag"
+  }'
+

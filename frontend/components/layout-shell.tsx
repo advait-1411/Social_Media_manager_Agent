@@ -15,7 +15,8 @@ import {
     Bell,
     HelpCircle,
     Menu,
-    ChevronDown
+    ChevronDown,
+    Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,9 +25,10 @@ import { NotificationsPopover } from '@/components/notifications-popover';
 
 const NAV_ITEMS = [
     { name: 'Home', icon: Home, href: '/' },
-    { name: 'Publish', icon: Calendar, href: '/publish' },
-    { name: 'Create', icon: PenTool, href: '/create' },
-    { name: 'Assets', icon: Library, href: '/assets' },
+    { name: 'Calendar', icon: Calendar, href: '/publish' },
+    { name: 'Create New Post', icon: PenTool, href: '/create' },
+    { name: 'Campaigns', icon: Megaphone, href: '/campaigns' },
+    { name: 'Create Images', icon: Library, href: '/assets' },
     { name: 'Approvals', icon: CheckSquare, href: '/approvals' },
     { name: 'Analytics', icon: BarChart2, href: '/analytics' },
     { name: 'Settings', icon: Settings, href: '/settings' },
@@ -118,7 +120,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
                             <Menu className="w-5 h-5" />
                         </button>
                         <nav className="hidden md:flex items-center gap-6">
-                            {['Create', 'Publish', 'Community', 'Analyze'].map((tab) => (
+                            {['Create New Post', 'Calendar', 'Community', 'Analyze'].map((tab) => (
                                 <button
                                     key={tab}
                                     className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors relative group py-1"

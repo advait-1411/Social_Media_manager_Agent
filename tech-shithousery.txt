@@ -1,0 +1,8 @@
+:8000/api/campaigns/[object%20Object]/commit:1  Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)
+:8000/api/campaigns/[object%20Object]/commit:1  Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)
+api.ts:16  POST http://localhost:8000/api/campaigns/[object%20Object]/commit 422 (Unprocessable Entity)
+
+
+INFO:     127.0.0.1:51870 - "POST /api/campaigns/%5Bobject%20Object%5D/commit HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:51870 - "POST /api/campaigns/%5Bobject%20Object%5D/commit HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:57049 - "POST /api/campaigns/%5Bobject%20Object%5D/commit HTTP/1.1" 422 Unprocessable Entity

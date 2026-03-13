@@ -122,7 +122,7 @@ export default function PublishPage() {
         <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Publishing</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
                     <p className="text-gray-500 text-sm">Schedule and manage your content calendar.</p>
                 </div>
                 <div className="flex gap-4">

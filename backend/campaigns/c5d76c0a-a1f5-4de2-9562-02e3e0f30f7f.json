@@ -1,0 +1,61 @@
+{
+  "id": "c5d76c0a-a1f5-4de2-9562-02e3e0f30f7f",
+  "title": "AI Voice Agent for Healthcare Appointments",
+  "strategy": "This campaign highlights the innovative use of AI voice agents in the healthcare industry for seamless appointment booking. By showcasing the ease and efficiency brought by this technology, we aim to engage healthcare providers and patients alike, emphasizing the value of adopting AI solutions in daily operations.",
+  "created_at": "2026-03-03 08:04:34.944586+00:00",
+  "updated_at": "2026-03-03 08:04:34.944586+00:00",
+  "business_context": "gen ai",
+  "guidelines": {
+    "tone": "professional"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "a3c03a1b-2a36-4b41-b8ec-5e617cd0f927",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "A bright flat-lay of AI technology equipment beside a stethoscope on a clean, professional desk.",
+      "caption": "Transform your healthcare experience with our AI voice agent! \ud83e\udd16\ud83d\udcac Say goodbye to long wait times and hello to easy appointment booking. Let AI help you take care of your health! #HealthcareInnovation #AI #AppointmentBooking #YourBrand",
+      "hashtags": [
+        "#HealthcareInnovation",
+        "#AI",
+        "#AppointmentBooking",
+        "#YourBrand"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "d4f1d59c-0c2f-4e7c-b7e9-2a56f3d1f92b",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "A smiling healthcare professional using a tablet to book an appointment with AI assistance.",
+      "caption": "Healthcare made easy! With our AI voice agent, booking appointments is just a voice command away. Explore how we can revolutionize patient care. #AIinHealthcare #VoiceTechnology #YourBrand",
+      "hashtags": [
+        "#AIinHealthcare",
+        "#VoiceTechnology",
+        "#YourBrand",
+        "#HealthTech"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "a6b0d6c3-7d6a-4e04-9dbb-2b44f8a4cde3",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "An infographic comparing traditional appointment booking methods with AI voice agent advantages.",
+      "caption": "Why choose AI for appointment bookings? \ud83d\udcc8 Here\u2019s how our voice agent outperforms traditional methods! Say yes to efficiency and patient satisfaction! #HealthCare #AIAutomation #YourBrand",
+      "hashtags": [
+        "#HealthCare",
+        "#AIAutomation",
+        "#YourBrand",
+        "#TechInHealth"
+      ],
+      "status": "blueprint"
+    }
+  ]
+}

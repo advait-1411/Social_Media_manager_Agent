@@ -1,0 +1,63 @@
+{
+  "id": "38329dc2-c102-41b4-8ccc-3ff77d4a20db",
+  "title": "Holi with ONIDA: Celebrate the Colors of Joy",
+  "strategy": "This campaign will focus on celebrating Holi with ONIDA TV, highlighting the joy of watching colorful celebrations with friends and family. The posts will encapsulate the essence of the festival, showcasing how ONIDA enhances your viewing experience during this vibrant season.",
+  "created_at": "2026-02-26 07:35:07.691984+00:00",
+  "updated_at": "2026-02-26 07:35:07.691984+00:00",
+  "business_context": "Electronics and consumer goods",
+  "guidelines": {
+    "tone": "jolly and friendly",
+    "legal_footer": "testing"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "e7f7c77a-5ee6-4c9a-a7f6-5c1a34bcd88b",
+      "platform": "instagram",
+      "asset_id": 55,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "\ud83c\udf89 Celebrate Holi with vibrant colors and your favorite shows on ONIDA TV! Bring your loved ones together for an unforgettable viewing experience. \ud83c\udf08 #HoliWithONIDA #ColorfulCelebrations #FamilyTime #JoyfulMoments #testing",
+      "hashtags": [
+        "#HoliWithONIDA",
+        "#ColorfulCelebrations",
+        "#FamilyTime",
+        "#JoyfulMoments",
+        "#testing"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "1e9a1f95-f4f3-4e9c-a425-7aaed6d5926f",
+      "platform": "instagram",
+      "asset_id": 56,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "This Holi, let the colors shine brighter with ONIDA TV! \ud83c\udf1f Gather your family and immerse in the festivities while enjoying your favorite shows. Happy Holi! \ud83c\udf1f #ONIDATV #HoliFestivities #FamilyBonding #testing",
+      "hashtags": [
+        "#ONIDATV",
+        "#HoliFestivities",
+        "#FamilyBonding",
+        "#testing"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "c28c1f06-5f72-4d9b-b2f9-1d6e6f6fa0e2",
+      "platform": "instagram",
+      "asset_id": 60,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "\ud83c\udf08 This Holi, let ONIDA TV be your companion for colorful memories! Dive into the vibrant spirit of the festival with us! \ud83c\udf8a #CelebrateHoli #ONIDATV #WatchTogether #testing",
+      "hashtags": [
+        "#CelebrateHoli",
+        "#ONIDATV",
+        "#WatchTogether",
+        "#testing"
+      ],
+      "status": "blueprint"
+    }
+  ]
+}

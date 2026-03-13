@@ -158,12 +158,12 @@ export const postsApi = {
   },
 
   getCalendar: async (startDate: string, endDate: string, status: string = 'scheduled') => {
-      const params = new URLSearchParams({
-          start_date: startDate,
-          end_date: endDate,
-          status
-      });
-      return apiFetch(`/api/posts/calendar?${params}`);
+    const params = new URLSearchParams({
+      start_date: startDate,
+      end_date: endDate,
+      status
+    });
+    return apiFetch(`/api/posts/calendar?${params}`);
   }
 };
 
@@ -210,6 +210,13 @@ export const assetsApi = {
 
     return await response.json();
   },
+
+  remix: async (assetId: number, prompt: string, numVariants: number = 1) => {
+    return apiFetch(`/api/assets/${assetId}/remix`, {
+      method: 'POST',
+      body: JSON.stringify({ prompt, num_variants: numVariants }),
+    });
+  },
 };
 
 // AI API
@@ -232,6 +239,178 @@ export const aiApi = {
     return apiFetch(`/api/ai/hashtags`, {
       method: 'POST',
       body: JSON.stringify({ content }),
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Campaigns – TypeScript interfaces (file-backed)
+// ---------------------------------------------------------------------------
+
+export interface PostBlueprint {
+  blueprint_id: string;
+  platform: string;           // "instagram" | "linkedin" | "twitter"
+  asset_id?: number | null;
+  asset_ids?: number[] | null; // Carousel: multiple assets
+  image_prompt?: string | null;
+  caption: string;
+  hashtags: string[];
+  status?: string;            // "blueprint" | "committed"
+}
+
+export interface CampaignFile {
+  id: string;
+  title: string;
+  strategy: string;
+  created_at: string;
+  updated_at: string;
+  business_context?: string | null;
+  guidelines?: Record<string, any> | null;
+  platforms: string[];
+  posts: PostBlueprint[];
+}
+
+/** CampaignFile as returned by /generate – may carry an optional schedule hint from the AI. */
+export interface CampaignBlueprint extends CampaignFile {
+  schedule_hint?: string | null;
+}
+
+export interface CampaignMeta {
+  id: string;
+  title: string;
+  strategy: string;
+  created_at: string;
+  platforms: string[];
+  post_count: number;
+}
+
+export interface CampaignGenerationRequest {
+  prompt: string;
+  business_context?: string;
+  asset_ids?: number[];
+  logo_id?: number;
+  platforms?: string[];
+  guidelines?: Record<string, any>;
+  num_campaigns?: number;
+  posts_per_campaign?: number;
+}
+
+export interface CommitCampaignRequest {
+  blueprint_ids: string[];
+  default_status?: string;
+}
+
+export interface CommitCampaignResponse {
+  created_post_ids: number[];
+  message: string;
+}
+
+// Campaigns API client
+export const campaignsApi = {
+  generate: async (payload: CampaignGenerationRequest): Promise<{ campaigns: CampaignBlueprint[] }> => {
+    return apiFetch('/api/campaigns/generate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  list: async (): Promise<CampaignMeta[]> => {
+    return apiFetch('/api/campaigns/');
+  },
+
+  getById: async (id: string): Promise<CampaignFile> => {
+    return apiFetch(`/api/campaigns/${id}`);
+  },
+
+  update: async (id: string, updates: Partial<CampaignFile>) => {
+    return apiFetch(`/api/campaigns/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  delete: async (id: string) => {
+    return apiFetch(`/api/campaigns/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  commit: async (id: string, payload: CommitCampaignRequest): Promise<CommitCampaignResponse> => {
+    return apiFetch(`/api/campaigns/${id}/commit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Drafts – TypeScript interfaces
+// ---------------------------------------------------------------------------
+
+export interface DraftFile {
+  id: string;
+  caption: string;
+  asset_ids: number[];
+  platforms: string[];
+  created_at: string;
+  updated_at: string;
+  source?: string;
+}
+
+export interface DraftMeta {
+  id: string;
+  caption: string;
+  platforms: string[];
+  created_at: string;
+  updated_at: string;
+  asset_count: number;
+}
+
+export interface DraftCreateRequest {
+  caption: string;
+  asset_ids?: number[];
+  platforms?: string[];
+  source?: string;
+}
+
+export interface DraftCommitResponse {
+  post_id: number;
+  message: string;
+}
+
+// Drafts API client
+export const draftsApi = {
+  list: async (): Promise<DraftMeta[]> => {
+    return apiFetch('/api/drafts/');
+  },
+
+  getById: async (id: string): Promise<DraftFile> => {
+    return apiFetch(`/api/drafts/${id}`);
+  },
+
+  create: async (payload: DraftCreateRequest): Promise<DraftFile> => {
+    return apiFetch('/api/drafts/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  update: async (id: string, updates: Partial<DraftCreateRequest>): Promise<DraftFile> => {
+    return apiFetch(`/api/drafts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  delete: async (id: string) => {
+    return apiFetch(`/api/drafts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  commit: async (id: string): Promise<DraftCommitResponse> => {
+    return apiFetch(`/api/drafts/${id}/commit`, {
+      method: 'POST',
     });
   },
 };

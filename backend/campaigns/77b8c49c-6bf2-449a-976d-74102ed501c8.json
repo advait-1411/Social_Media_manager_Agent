@@ -1,0 +1,60 @@
+{
+  "id": "77b8c49c-6bf2-449a-976d-74102ed501c8",
+  "title": "AI Voice Agent for Health Care Appointments",
+  "strategy": "This campaign will highlight the innovative use of AI voice agents in the healthcare industry, specifically for streamlining appointment booking. By showcasing the ease and efficiency of using AI for managing health appointments, we aim to engage healthcare providers and patients alike.",
+  "created_at": "2026-03-05 09:55:27.690445+00:00",
+  "updated_at": "2026-03-05 09:55:30.716559+00:00",
+  "business_context": "Gen ai products , Software products",
+  "guidelines": {
+    "tone": "professional",
+    "legal_footer": "nothing"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "6e9a0f41-4161-4c62-8b1f-5f92e2e6dabd",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "An AI voice assistant in action, interacting with a patient in a waiting room.",
+      "caption": "Say goodbye to long wait times! \ud83d\udd52 Our AI voice agent makes booking health appointments a breeze. Experience the future of healthcare. \ud83c\udf1f #AIVoiceAgent #HealthcareInnovation #AppointmentBooking #YourBrand",
+      "hashtags": [
+        "#AIVoiceAgent",
+        "#HealthcareInnovation",
+        "#AppointmentBooking",
+        "#YourBrand"
+      ],
+      "status": "committed"
+    },
+    {
+      "blueprint_id": "c83d8828-b2cb-4ed5-9e2b-0c5e16f14d06",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "A patient happily receiving confirmation of their appointment via AI assistant.",
+      "caption": "Booking your health appointments just got smarter! \ud83e\udd16\ud83d\udcac Our AI voice agent is here to help you every step of the way. #SmartHealth #AIAssistant #YourBrand",
+      "hashtags": [
+        "#SmartHealth",
+        "#AIAssistant",
+        "#YourBrand"
+      ],
+      "status": "committed"
+    },
+    {
+      "blueprint_id": "f3c5d019-d0e4-498d-b566-f0c0d48a8d8d",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "An infographic showing the benefits of using AI voice agents in healthcare.",
+      "caption": "Unlock the potential of AI in healthcare! \ud83d\ude80 From efficiency to better patient experiences, discover the advantages of our voice agent technology. #HealthTech #AIInHealthcare #YourBrand",
+      "hashtags": [
+        "#HealthTech",
+        "#AIInHealthcare",
+        "#YourBrand"
+      ],
+      "status": "committed"
+    }
+  ]
+}

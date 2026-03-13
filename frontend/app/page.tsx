@@ -39,9 +39,9 @@ export default function Home() {
               transition={{ delay: 0.2 }}
             >
               <Link href="/assets" className="group block border-l-[5px] border-[#14225e] pl-5 py-2 hover:border-l-[10px] hover:pl-8 transition-all duration-200 cursor-pointer">
-                <span className="block text-2xl font-bold mb-1 group-hover:text-[#231ef7] transition-colors">Assets</span>
+                <span className="block text-2xl font-bold mb-1 group-hover:text-[#231ef7] transition-colors">Create Images</span>
                 <span className="block text-base text-gray-600 font-normal">
-                  Not sure where to start? Check out our AI asset closet to generate stunning visuals.
+                  Not sure where to start? Create stunning visuals with AI for your brand.
                 </span>
               </Link>
             </motion.div>
@@ -52,7 +52,7 @@ export default function Home() {
               transition={{ delay: 0.3 }}
             >
               <Link href="/create" className="group block border-l-[5px] border-[#14225e] pl-5 py-2 hover:border-l-[10px] hover:pl-8 transition-all duration-200 cursor-pointer">
-                <span className="block text-2xl font-bold mb-1 group-hover:text-[#231ef7] transition-colors">Create</span>
+                <span className="block text-2xl font-bold mb-1 group-hover:text-[#231ef7] transition-colors">Create New Post</span>
                 <span className="block text-base text-gray-600 font-normal">
                   Craft the perfect post for Instagram, LinkedIn, and Twitter with our composer.
                 </span>
@@ -65,7 +65,7 @@ export default function Home() {
               transition={{ delay: 0.4 }}
             >
               <Link href="/publish" className="group block border-l-[5px] border-[#14225e] pl-5 py-2 hover:border-l-[10px] hover:pl-8 transition-all duration-200 cursor-pointer">
-                <span className="block text-2xl font-bold mb-1 group-hover:text-[#231ef7] transition-colors">Schedule</span>
+                <span className="block text-2xl font-bold mb-1 group-hover:text-[#231ef7] transition-colors">Calendar</span>
                 <span className="block text-base text-gray-600 font-normal">
                   Plan your content calendar and automate your growth across platforms.
                 </span>

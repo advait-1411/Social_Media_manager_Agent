@@ -13,12 +13,16 @@ from datetime import datetime, timezone
 import os
 import logging
 from ..services.instagram_comments import (
-    get_post_comments, 
-    reply_to_comment, 
-    post_first_comment, 
+    get_post_comments,
+    reply_to_comment,
+    post_first_comment,
     pin_comment,
     set_comments_enabled,
-    set_like_count_hidden
+    set_like_count_hidden,
+)
+from ..services.composio_instagram import (
+    fetch_comments_via_composio,
+    reply_to_comment_via_composio,
 )
 
 from ..services.ai_assistant import analyze_comment, generate_comment_reply
@@ -138,30 +142,34 @@ async def sync_comments(post_id: int, db: Session = Depends(get_db)):
         )
     
     logger.info(f"[COMMENTS] Instagram media ID: {media_id}")
-    
-    # Resolve credentials
-    user_id, token = resolve_instagram_credentials(db)
-    
-    # Fetch comments from Instagram
+
     try:
-        logger.info(f"[COMMENTS] Fetching comments from Instagram API...")
-        result = get_post_comments(media_id, token, limit=50)
-        comments_data = result.get("data", [])
-        
+        # Fetch comments (Composio first, Graph API fallback)
+        raw_comments = None
+        try:
+            raw_comments = await fetch_comments_via_composio(media_id, limit=50)
+            logger.info(f"[COMMENTS] Fetched {len(raw_comments)} comments for post {post_id} via Composio")
+        except Exception as e:
+            logger.warning(f"[COMPOSIO COMMENTS] Failed, falling back to Graph API: {e}")
+            user_id, token = resolve_instagram_credentials(db)
+            result = get_post_comments(media_id, token, limit=50)
+            raw_comments = result.get("data", [])
+
+        comments_data = raw_comments
         logger.info(f"[COMMENTS] Received {len(comments_data)} comments from Instagram")
-        
+
         # Process each comment
         for comment_data in comments_data:
             external_id = comment_data.get("id")
             if not external_id:
                 continue
-            
+
             # Check if comment already exists
             existing = db.query(models.Comment).filter(
                 models.Comment.platform == "instagram",
                 models.Comment.external_comment_id == external_id
             ).first()
-            
+
             if existing:
                 # Update existing comment
                 existing.text = comment_data.get("text", existing.text)
@@ -182,7 +190,7 @@ async def sync_comments(post_id: int, db: Session = Depends(get_db)):
                     category="general"
                 )
                 db.add(new_comment)
-                
+
                 # Analyze new comment with AI
                 if new_comment.text:
                     try:
@@ -192,19 +200,19 @@ async def sync_comments(post_id: int, db: Session = Depends(get_db)):
                         logger.info(f"[COMMENTS] Analyzed new comment: sentiment={new_comment.sentiment}, category={new_comment.category}")
                     except Exception as e:
                         logger.warning(f"[COMMENTS] Failed to analyze comment: {str(e)}")
-                
+
                 logger.info(f"[COMMENTS] Created new comment: {external_id}")
-        
+
         db.commit()
         logger.info(f"[COMMENTS] ✓ Comments synced successfully")
-        
+
         # Return all comments for this post
         comments = db.query(models.Comment).filter(
             models.Comment.post_id == post_id
         ).order_by(models.Comment.created_at.desc()).all()
-        
+
         return comments
-        
+
     except Exception as e:
         logger.error(f"[COMMENTS] ✗ Error syncing comments: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to sync comments: {str(e)}")
@@ -288,7 +296,7 @@ async def suggest_reply(
 
 
 @router.post("/comments/{comment_id}/reply")
-def post_reply(
+async def post_reply(
     comment_id: int,
     request: ReplyRequest,
     db: Session = Depends(get_db)
@@ -305,30 +313,46 @@ def post_reply(
     
     if not comment.external_comment_id:
         raise HTTPException(status_code=400, detail="Comment has no external_comment_id")
-    
-    # Resolve credentials
+
+    # Resolve credentials (needed for Graph API fallback)
     user_id, token = resolve_instagram_credentials(db)
-    
+
+    final_reply_id = None
     try:
-        # Post reply to Instagram
-        reply_id = reply_to_comment(comment.external_comment_id, request.reply_text, token)
-        
-        # Update comment
+        # Try Composio first
+        try:
+            result = await reply_to_comment_via_composio(
+                comment.external_comment_id, request.reply_text
+            )
+            final_reply_id = result.get("reply_id")
+            logger.info(f"[COMPOSIO REPLY] Replied to comment {comment.external_comment_id}")
+        except Exception as e:
+            logger.warning(f"[COMPOSIO REPLY] Failed, falling back to Graph API: {e}")
+            # If Composio fails, try Graph API fallback
+            final_reply_id = reply_to_comment(comment.external_comment_id, request.reply_text, token)
+            logger.info(f"[COMMENTS] Fallback Graph API reply successful for comment {comment.external_comment_id}")
+
+        if not final_reply_id:
+            raise Exception("Failed to obtain a reply ID from both Composio and Graph API fallback.")
+
+        # If we reached here, a reply_id was successfully obtained
         comment.replied = True
         if not comment.ai_reply_text:
             comment.ai_reply_text = request.reply_text
         db.commit()
-        
+
         logger.info(f"[COMMENTS] ✓ Reply posted successfully to Instagram")
-        logger.info(f"[COMMENTS] Reply ID: {reply_id}")
-        
+        logger.info(f"[COMMENTS] Final Reply ID: {final_reply_id}")
+
         return {
             "success": True,
-            "reply_id": reply_id
+            "reply_id": final_reply_id,
         }
-        
+
     except Exception as e:
         logger.error(f"[COMMENTS] ✗ Error posting reply: {str(e)}")
+        # Rollback any pending DB changes if an exception occurred before commit
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to post reply: {str(e)}")
 
 

@@ -3,6 +3,27 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from ..database import Base
 
+# NOTE: Tables are created with create_all on startup. If upgrading an existing DB,
+# you must manually run:
+#   ALTER TABLE assets ADD COLUMN brand_kit_id INTEGER REFERENCES brand_kits(id);
+# OR wipe the DB file and restart to let create_all build fresh tables.
+
+class BrandKit(Base):
+    __tablename__ = "brand_kits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=False)
+    logo_light_path = Column(String, nullable=True)  # light version logo file path
+    logo_dark_path = Column(String, nullable=True)   # dark version logo file path
+    is_default = Column(Boolean, default=False)      # marks the fallback kit
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    assets = relationship("Asset", back_populates="brand_kit")
+
+
 class Asset(Base):
     __tablename__ = "assets"
 
@@ -10,10 +31,15 @@ class Asset(Base):
     file_path = Column(String, nullable=False)  # Local path or URL
     asset_type = Column(String, default="image")  # image, video
     prompt = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=True)  # ONIDA brand rules used for this asset
     tags = Column(JSON, default=list)  # List of tags as strings
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     meta_data = Column(JSON, default=dict)  # Model used, params, etc.
-    
+
+    # Brand Kit linkage
+    brand_kit_id = Column(Integer, ForeignKey("brand_kits.id"), nullable=True)
+    brand_kit = relationship("BrandKit", back_populates="assets")
+
     # Lineage for variants
     parent_id = Column(Integer, ForeignKey("assets.id"), nullable=True)
     variants = relationship("Asset", backref=backref("parent", remote_side=[id]))
@@ -81,4 +107,3 @@ class Notification(Base):
     type = Column(String, default="info")  # info, success, error, warning
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-

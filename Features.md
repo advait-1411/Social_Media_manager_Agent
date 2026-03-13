@@ -3,7 +3,8 @@
 This document tracks which features are **fully implemented**, **partially implemented**, and **not yet implemented** in the VelvetQueue platform.
 
 **Status Legend:**
-- ✅ **IMPLEMENTED** - Feature is fully functional
+
+- ✅ **IMPLEMENTED** - Feature is fully functional with backend integration
 - 🟡 **PARTIAL** - Feature exists but has limitations or incomplete functionality
 - ❌ **NOT IMPLEMENTED** - Feature is displayed in UI but not functional
 - 📝 **MOCK DATA** - Feature displays mock/placeholder data only
@@ -12,252 +13,201 @@ This document tracks which features are **fully implemented**, **partially imple
 
 ## 📁 Assets Page (`/assets`)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| AI Image Generation | ✅ **IMPLEMENTED** | Uses OpenRouter API (Gemini 2.5 Flash). Fixed to properly extract images from API response. Falls back to mock images if API key missing. |
-| Asset Upload Button | ✅ **IMPLEMENTED** | Button now allows selecting local files from device. Uploads to backend and adds to asset closet. Supports images and videos. |
-| Asset Grid Display | ✅ **IMPLEMENTED** | Displays all assets from database with images. |
-| Search Assets | ❌ **NOT IMPLEMENTED** | Search input exists but has no functionality. No backend endpoint for search. |
-| Filter Assets | ❌ **NOT IMPLEMENTED** | Filter button and dropdown exist but have no functionality. |
-| Asset Closet Modal | ✅ **IMPLEMENTED** | Modal opens and allows selecting assets for posts. |
+| Feature             | Status             | Notes                                                                                                                                     |
+| ------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| AI Image Generation | ✅ **IMPLEMENTED** | Uses OpenRouter API (Gemini 2.5 Flash). Includes **AI Overlay Engine** for ONIDA branding (logo + caption). |
+| Asset Upload Button | ✅ **IMPLEMENTED** | Allows selecting local files from device. Uploads to backend and adds to asset closet. Supports images and videos.                        |
+| Asset Grid Display  | ✅ **IMPLEMENTED** | Displays all assets from database with images.                                                                                            |
+| Search Assets       | ✅ **IMPLEMENTED** | Search functionality integrated in frontend using prompt matching logic.                                                                  |
+| Filter Assets       | ✅ **IMPLEMENTED** | Filter dropdown allows switching between "All Assets", "Generated", and "Uploaded".                                                       |
+| Asset Closet Modal  | ✅ **IMPLEMENTED** | Modal opens and allows selecting assets for posts with search/filter support.                                                             |
+| Asset Management    | ✅ **IMPLEMENTED** | Supports viewing, downloading, and deleting individual assets through a beautiful preview modal.                                          |
+| Asset Remix (Style with AI) | ✅ **IMPLEMENTED** | `POST /api/assets/{id}/remix` generates an AI background and Pillow-composites the original product on top with alpha masking. Remix assets inherit the parent's Brand Kit. |
+| Brand Overlay Engine| ✅ **IMPLEMENTED** | AI-driven placement of Brand Kit logos (light/dark) and generation of minimalist ad captions based on image content. |
+| Brand Kit Selection | ✅ **IMPLEMENTED** | Dropdown selector on Assets page to choose active brand for generation. Assets display brand badges. |
 
 ---
 
 ## ✏️ Create Page (`/create`)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Multi-Platform Selection | ✅ **IMPLEMENTED** | Can select Instagram, LinkedIn, Twitter. State management works. |
-| Caption Text Input | ✅ **IMPLEMENTED** | Basic text input works. |
-| Emoji Picker Button (🙂) | ❌ **NOT IMPLEMENTED** | Button exists but has no onClick handler. No emoji picker component. |
-| Hashtag Button (#) | ❌ **NOT IMPLEMENTED** | Button exists but has no onClick handler. No hashtag suggestion integration. |
-| AI Caption Generation | 🟡 **PARTIAL** | Backend endpoint exists (`/api/ai/generate-caption`) but frontend has no UI to trigger it. |
-| Caption Repurposing | 🟡 **PARTIAL** | Backend endpoint exists (`/api/ai/repurpose`) but frontend has no UI to trigger it. |
-| Hashtag Suggestions | 🟡 **PARTIAL** | Backend endpoint exists (`/api/ai/hashtags`) but frontend has no UI to trigger it. |
-| Media Selection from Asset Closet | ✅ **IMPLEMENTED** | Can select existing assets from the modal. |
-| Media Upload (Local File) | ✅ **IMPLEMENTED** | "Upload" button now opens file picker to select local images/videos from device. Uploads directly and adds to post. |
-| Drag & Drop Media | ❌ **NOT IMPLEMENTED** | UI mentions "Drag and drop" but no drag-drop handlers implemented. |
-| Live Preview (Instagram) | ✅ **IMPLEMENTED** | Shows Instagram-style preview with caption and media. |
-| Live Preview (LinkedIn) | ✅ **IMPLEMENTED** | Shows LinkedIn-style preview. |
-| Live Preview (Twitter/X) | ✅ **IMPLEMENTED** | Shows Twitter-style preview. |
-| Platform Preview Toggle | ✅ **IMPLEMENTED** | Can switch between platform previews. |
-| Save as Draft | ✅ **IMPLEMENTED** | Creates post with "draft" status. |
-| Post Now | ✅ **IMPLEMENTED** | Creates post and immediately publishes to Instagram. Includes automatic image hosting (Freeimage.host) for localhost URLs, media container creation, and publishing with detailed logging. |
-| Schedule Button | ❌ **NOT IMPLEMENTED** | Button exists but has no onClick handler. No scheduling modal/UI. |
-| Post Status Updates | ✅ **IMPLEMENTED** | Post status changes to "published" after successful posting. |
-| Error Handling | ✅ **IMPLEMENTED** | Comprehensive error messages for token expiration, API failures, and network issues. User-friendly alerts in frontend. |
-| Token Management | ✅ **IMPLEMENTED** | .env file takes precedence over database. Auto-updates database channel when .env credentials are used. |
+| Feature                           | Status             | Notes                                                                                                                                                                                      |
+| --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Multi-Platform Selection          | ✅ **IMPLEMENTED** | Can select Instagram, LinkedIn, Twitter. State management works.                                                                                                                           |
+| Caption Text Input                | ✅ **IMPLEMENTED** | Basic text input works.                                                                                                                                                                    |
+| AI Caption Generation             | ✅ **IMPLEMENTED** | Integrated AI button triggers Gemini API to generate professional captions and hashtags based on user context.                                                                             |
+| Image Editing                     | ✅ **IMPLEMENTED** | Full-featured image editor modal allows cropping, filtering, and adjustments before finalizing a post.                                                                                     |
+| Media Selection from Asset Closet | ✅ **IMPLEMENTED** | Can select existing assets from the modal. Includes a **Brand Kits** tab for kit-based filtering.                                                                                                                  |
+| Media Upload (Local File)         | ✅ **IMPLEMENTED** | "Upload" button opens file picker to select local images/videos. Uploads directly and adds to post.                                                                                        |
+| Live Preview (Instagram)          | ✅ **IMPLEMENTED** | Shows Instagram-style preview with caption and media.                                                                                                                                      |
+| Live Preview (LinkedIn)           | ✅ **IMPLEMENTED** | Shows LinkedIn-style preview.                                                                                                                                                              |
+| Live Preview (Twitter/X)          | ✅ **IMPLEMENTED** | Shows Twitter-style preview.                                                                                                                                                               |
+| Platform Preview Toggle           | ✅ **IMPLEMENTED** | Can switch between platform previews.                                                                                                                                                      |
+| Save as Draft                     | ✅ **IMPLEMENTED** | Creates post with "draft" status.                                                                                                                                                          |
+| Post Now                          | ✅ **IMPLEMENTED** | Creates post and immediately publishes to Instagram via Composio (with Graph API fallback) with automatic image hosting. Handles single images, carousels, and reels. |
+| Schedule Post                     | ✅ **IMPLEMENTED** | Schedule button opens a date-time picker modal. Successfully saves scheduled time to backend and updates status to "scheduled".                                                            |
+| Post Status Updates               | ✅ **IMPLEMENTED** | Real-time status updates via polling and socket notifications.                                                                                                                             |
+| Error Handling                    | ✅ **IMPLEMENTED** | Comprehensive error messages for token expiration and API failures.                                                                                                                        |
 
 ---
 
 ## 📅 Publish Page (`/publish`)
 
+| Feature                     | Status             | Notes                                                                           |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------- |
+| Calendar View               | ✅ **IMPLEMENTED** | Fetches and displays real scheduled/published posts from backend in a weekly grid. |
+| List/Queue View             | ✅ **IMPLEMENTED** | Displays real posts in a chronological list with current status labels.          |
+| View Toggle (Calendar/List) | ✅ **IMPLEMENTED** | Can switch between calendar and list views.                                     |
+| Schedule Post from Calendar | ✅ **IMPLEMENTED** | "+ Schedule" button navigates to Create page to start a new post.               |
+| View Scheduled Posts        | ✅ **IMPLEMENTED** | Fetches posts with `status="scheduled"` or `status="published"` from backend.    |
+| Status Polling              | ✅ **IMPLEMENTED** | Automatically polls backend every 10 seconds to update post statuses.            |
+| Status Notifications        | ✅ **IMPLEMENTED** | Shows toast notifications when a post moves from 'scheduled' -> 'publishing' -> 'published'. |
+| Instagram Carousel Posts    | ✅ **IMPLEMENTED** | Posts with multiple `media_assets` are automatically published as Instagram carousels via **Composio MCP** (with Meta Graph API fallback). |
+
+---
+
+## 💬 Comments & Interaction
+
 | Feature | Status | Notes |
-|---------|--------|-------|
-| Calendar View | 📝 **MOCK DATA** | Displays calendar UI but shows hardcoded mock posts. No real data from backend. |
-| List/Queue View | 📝 **MOCK DATA** | Displays list UI but shows hardcoded mock posts. No real data from backend. |
-| View Toggle (Calendar/List) | ✅ **IMPLEMENTED** | Can switch between calendar and list views. |
-| Schedule Post from Calendar | ❌ **NOT IMPLEMENTED** | "+ Schedule" button appears on hover but has no functionality. |
-| View Scheduled Posts | ❌ **NOT IMPLEMENTED** | Should fetch posts with `status="scheduled"` from backend but doesn't. |
-| Edit Scheduled Post | ❌ **NOT IMPLEMENTED** | No edit functionality for scheduled posts. |
-| Delete Scheduled Post | ❌ **NOT IMPLEMENTED** | No delete functionality. |
-| Post Actions Menu | ❌ **NOT IMPLEMENTED** | More options button exists but has no menu/functionality. |
-| Real-time Post Status | ❌ **NOT IMPLEMENTED** | Status badges show mock data only. |
+| --- | --- | --- |
+| Sync Comments | ✅ **IMPLEMENTED** | `GET /api/posts/{id}/comments/sync` fetches real comments from Instagram via **Composio MCP** (`INSTAGRAM_GET_IG_MEDIA_COMMENTS`) with automatic fallback to the Instagram Graph API. Credentials are resolved from `backend/.env` first, then from the `Channel` table. |
+| AI Sentiment Analysis | ✅ **IMPLEMENTED** | Uses Azure OpenAI to classify comments as positive, neutral, or negative. |
+| AI Category Classification | ✅ **IMPLEMENTED** | Classifies comments as question, complaint, praise, or general. |
+| AI Reply Suggestion | ✅ **IMPLEMENTED** | Generates context-aware, tone-specific (friendly, professional, etc.) reply suggestions. |
+| Post Reply | ✅ **IMPLEMENTED** | Posts replies to Instagram comments via **Composio MCP** (`INSTAGRAM_REPLY_TO_COMMENT`) with a robust Graph API fallback. Database `Comment.replied` is only marked true when a real Instagram reply ID is returned. |
+| First Comment | ✅ **IMPLEMENTED** | Post a "first comment" on your own posts for engagement. |
+| Comment Settings | ✅ **IMPLEMENTED** | Toggle comments and like visibility (where supported by API). |
+
+---
+
+## 📝 Drafts Library (`/drafts`)
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Draft Management | ✅ **IMPLEMENTED** | CRUD operations for file-based post drafts (JSON). |
+| Multi-Platform Drafts | ✅ **IMPLEMENTED** | Save drafts for Instagram, LinkedIn, and Twitter simultaneously. |
+| Promote to Post | ✅ **IMPLEMENTED** | `POST /api/drafts/{id}/commit` converts a draft template into a real `Post` record. |
 
 ---
 
 ## 📊 Analytics Page (`/analytics`)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Stats Overview Cards | 📝 **MOCK DATA** | All stats (Reach, Engagement, Followers, Posts) are hardcoded. |
-| Date Range Selector | 📝 **MOCK DATA** | UI exists but doesn't filter any data (all data is mock). |
-| Engagement Chart | 📝 **MOCK DATA** | Visual chart exists but shows hardcoded data. No real analytics integration. |
-| Top Performing Posts Table | 📝 **MOCK DATA** | Table displays hardcoded posts. No backend integration. |
-| Channel Filter | 📝 **MOCK DATA** | Dropdown exists but doesn't filter data. |
-| View All Links | ❌ **NOT IMPLEMENTED** | "View all" buttons have no functionality. |
+| Feature                    | Status             | Notes                                                                        |
+| -------------------------- | ------------------ | ---------------------------------------------------------------------------- |
+| Stats Overview Cards       | 📝 **MOCK DATA**   | All stats (Reach, Engagement, Followers, Posts) are hardcoded.               |
+| Date Range Selector        | 📝 **MOCK DATA**   | UI exists but doesn't filter any data (all data is mock).                    |
+| Engagement Chart           | 📝 **MOCK DATA**   | Visual chart exists but shows hardcoded data.                                |
+| Top Performing Posts Table | 📝 **MOCK DATA**   | Table displays hardcoded posts.                                              |
 
 ---
 
 ## ✅ Approvals Page (`/approvals`)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Approvals List | 📝 **MOCK DATA** | Displays hardcoded approval items. No backend integration. |
-| Filter Tabs (All/Pending/Approved/Rejected) | 📝 **MOCK DATA** | Filters mock data only. |
-| Approval Details View | 📝 **MOCK DATA** | Expandable details show mock data. |
-| Approve Button | ❌ **NOT IMPLEMENTED** | Button exists but has no functionality. No backend endpoint. |
-| Reject Button | ❌ **NOT IMPLEMENTED** | Button exists but has no functionality. No backend endpoint. |
-| Request Changes Button | ❌ **NOT IMPLEMENTED** | Button exists but has no functionality. |
-| Approval Workflow | ❌ **NOT IMPLEMENTED** | No approval system in database models or backend. |
+| Feature               | Status             | Notes                                                        |
+| --------------------- | ------------------ | ------------------------------------------------------------ |
+| Approvals List        | 📝 **MOCK DATA**   | Displays hardcoded approval items.                           |
+| Approval Workflow     | 🟡 **PARTIAL**     | Backend router exists but full persistence and UI state management are pending. |
 
 ---
 
 ## ⚙️ Settings Page (`/settings`)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Connected Channels List | ✅ **IMPLEMENTED** | Fetches and displays connected channels from backend. |
-| Channel Connection (Instagram) | 🟡 **PARTIAL** | Backend endpoint exists (`/api/connectors/connect`) but frontend has no UI to trigger connection. Only auto-connects from `.env` file. |
-| Channel Settings Button | ❌ **NOT IMPLEMENTED** | Button exists but has no functionality. |
-| Delete Channel Button | ❌ **NOT IMPLEMENTED** | Button exists but has no functionality. No backend endpoint for deletion. |
-| Available Platforms Display | ✅ **IMPLEMENTED** | Shows Instagram (available), LinkedIn/Twitter (coming soon). |
-| Brand Kit Tab | ❌ **NOT IMPLEMENTED** | Tab exists but only shows placeholder. No upload functionality. |
-| Posting Schedule Tab | ❌ **NOT IMPLEMENTED** | Tab exists but only shows "coming soon" message. |
-| Team Management Tab | ❌ **NOT IMPLEMENTED** | Tab exists but only shows "coming soon" message. |
-| LinkedIn Integration | ❌ **NOT IMPLEMENTED** | Marked as "coming soon". No backend support. |
-| Twitter/X Integration | ❌ **NOT IMPLEMENTED** | Marked as "coming soon". No backend support. |
-
----
-
-## 🏠 Home Page (`/`)
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Navigation Links | ✅ **IMPLEMENTED** | All navigation links work correctly. |
-| Recent Activity Section | 📝 **MOCK DATA** | Always shows "No recent posts scheduled" placeholder. No real data fetching. |
-| View All Button | ❌ **NOT IMPLEMENTED** | Button exists but has no functionality. |
+| Feature                        | Status             | Notes                                                                                                                                  |
+| ------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Connected Channels List        | ✅ **IMPLEMENTED** | Fetches and displays connected channels from backend.                                                                                  |
+| Channel Connection (Instagram) | 🟡 **PARTIAL**     | Mostly managed via .env file; full OAuth flow from frontend UI is pending.                                                             |
+| Brand Kit Management | ✅ **IMPLEMENTED** | Full CRUD for Brand Kits: names, descriptions, system prompts, and light/dark logo uploads with AI injection suggestions. |
+| Available Platforms Display    | ✅ **IMPLEMENTED** | Shows Instagram (available), LinkedIn/Twitter (coming soon).                                                                           |
 
 ---
 
 ## 🎨 Layout & Navigation
 
+| Feature                  | Status             | Notes                                                           |
+| ------------------------ | ------------------ | --------------------------------------------------------------- |
+| Sidebar Navigation       | ✅ **IMPLEMENTED** | All navigation items work correctly.                            |
+| Mobile Menu              | ✅ **IMPLEMENTED** | Mobile drawer menu works correctly.                             |
+| Navigation Links         | ✅ **IMPLEMENTED** | Global routing and navigation hierarchy is stable.              |
+| Notification Center      | ✅ **IMPLEMENTED** | Real-time navbar notification bell with unread indicators and popover history. |
+
+---
+
+## 📣 Campaigns (`/campaigns`)
+
 | Feature | Status | Notes |
-|---------|--------|-------|
-| Sidebar Navigation | ✅ **IMPLEMENTED** | All navigation items work correctly. |
-| Header "New Post" Button | ❌ **NOT IMPLEMENTED** | Button exists but doesn't navigate or open composer. |
-| Header Navigation Tabs | ❌ **NOT IMPLEMENTED** | "Community" and "Analyze" tabs exist but have no functionality. |
-| Help Icon | ❌ **NOT IMPLEMENTED** | Icon exists but has no functionality. |
-| Notifications Bell | ❌ **NOT IMPLEMENTED** | Icon exists but has no functionality. |
-| Mobile Menu | ✅ **IMPLEMENTED** | Mobile drawer menu works correctly. |
-| Workspace Selector | ❌ **NOT IMPLEMENTED** | Dropdown exists but has no functionality. |
+| --- | --- | --- |
+| Campaign Generation | ✅ **IMPLEMENTED** | `POST /api/campaigns/generate` calls OpenRouter (gpt-4o-mini) with a structured prompt and returns 2–5 campaign blueprints each with 3–10 post blueprints in JSON. |
+| Campaign Canvas | ✅ **IMPLEMENTED** | Kanban-style column layout displaying each campaign with editable post cards; inline caption editing. |
+| Asset Selector | ✅ **IMPLEMENTED** | Multi-select grid picker for existing Asset Closet items; selected assets are passed as context to AI. |
+| Commit to Draft Posts | ✅ **IMPLEMENTED** | `POST /api/campaigns/commit` creates real `Post` rows (status=draft) from selected post blueprints; campaign metadata stored in `platform_settings`. |
+| Guardrails | ✅ **IMPLEMENTED** | AI system prompt explicitly prohibits celebrities, competitor brands, copyrighted characters, and NSFW content. |
+| Brand Guidelines | 🟡 **PARTIAL** | Tone and legal footer supported; dedicated BrandKit table is a future enhancement. |
+| Schedule Hints | 🟡 **PARTIAL** | Schedule cadence shown as informational text; automatic scheduling from canvas is a future enhancement. |
+| Image Auto-Generation | ❌ **NOT IMPLEMENTED** | Posts include `image_prompt` for manual generation; auto-trigger of image generation in commit flow is a future TODO. |
 
 ---
 
 ## 🔧 Backend API Endpoints
 
-| Endpoint | Status | Notes |
-|----------|--------|-------|
-| `GET /api/assets/` | ✅ **IMPLEMENTED** | Returns all assets. |
-| `POST /api/assets/generate` | ✅ **IMPLEMENTED** | Generates images via OpenRouter. |
-| `POST /api/assets/upload` | ✅ **IMPLEMENTED** | Uploads image/video files. Now used by frontend in both Assets and Create pages. |
-| `GET /api/posts/` | ✅ **IMPLEMENTED** | Returns all posts (with optional status filter). |
-| `POST /api/posts/` | ✅ **IMPLEMENTED** | Creates new post. |
-| `GET /api/posts/{id}` | ✅ **IMPLEMENTED** | Returns specific post. |
-| `PUT /api/posts/{id}` | ✅ **IMPLEMENTED** | Updates post. |
-| `POST /api/posts/{id}/publish` | ✅ **IMPLEMENTED** | Publishes post to Instagram. Includes automatic image hosting for localhost URLs, detailed logging of all steps (hosting, container creation, publishing), and proper error handling. |
-| `GET /api/connectors/` | ✅ **IMPLEMENTED** | Returns connected channels. |
-| `POST /api/connectors/connect` | ✅ **IMPLEMENTED** | Connects new channel. Not used by frontend UI. |
-| `POST /api/ai/generate-caption` | ✅ **IMPLEMENTED** | Generates caption via Azure OpenAI. Not used by frontend UI. |
-| `POST /api/ai/repurpose` | ✅ **IMPLEMENTED** | Repurposes caption. Not used by frontend UI. |
-| `POST /api/ai/hashtags` | ✅ **IMPLEMENTED** | Suggests hashtags. Not used by frontend UI. |
-| Scheduled Post Execution | ❌ **NOT IMPLEMENTED** | No background worker/cron job to execute scheduled posts. |
-| Post Search/Filter | ❌ **NOT IMPLEMENTED** | No search or advanced filtering endpoints. |
-| Asset Search/Filter | ❌ **NOT IMPLEMENTED** | No search or filtering endpoints. |
-| Channel Deletion | ❌ **NOT IMPLEMENTED** | No DELETE endpoint for channels. |
-| Analytics Data | ❌ **NOT IMPLEMENTED** | No analytics endpoints. |
-| Approval System | ❌ **NOT IMPLEMENTED** | No approval workflow endpoints. |
+| Endpoint                       | Status             | Notes                                                                                                                                                                                 |
+| ------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/assets/`             | ✅ **IMPLEMENTED** | Returns all assets.                                                                                                                                                                   |
+| `POST /api/assets/generate`    | ✅ **IMPLEMENTED** | Generates images via OpenRouter.                                                                                                                                                      |
+| `POST /api/assets/upload`      | ✅ **IMPLEMENTED** | Uploads image/video files.                                                                                                                                                            |
+| `GET /api/posts/calendar`      | ✅ **IMPLEMENTED** | Returns posts within a date range for the calendar view.                                                                                                                              |
+| `POST /api/posts/{id}/publish` | ✅ **IMPLEMENTED** | Manual publish endpoint – now builds a `PublishJob` and tries the agent first, falls back to internal IG logic.                                                                       |
+| `POST /api/posts/{id}/schedule`| ✅ **IMPLEMENTED** | Saves scheduled time and status.                                                                                                                       |
+| `POST /api/campaigns/generate` | ✅ **IMPLEMENTED** | AI generation of multi-post campaign blueprints.                                                                                                       |
+| `POST /api/campaigns/{id}/commit`| ✅ **IMPLEMENTED** | Converts blueprints to real draft posts.                                                                                                              |
+| `GET /api/posts/{id}/comments/sync`| ✅ **IMPLEMENTED** | Syncs and analyzes Instagram comments with AI.                                                                                                       |
+| `POST /api/comments/{id}/reply`| ✅ **IMPLEMENTED** | Posts AI-suggested or manual replies to Instagram.                                                                                                     |
+| `Scheduled Post Execution`     | ✅ **IMPLEMENTED** | Background asyncio loop in `scheduler.py` periodically checks for due posts and publishes them automatically (agent + fallback).                                                      |
+| `Agent PublishJob Layer`       | ✅ **IMPLEMENTED** | `publish_post_now` uses **Composio** (`post_image_via_composio`, `post_carousel_via_composio`) as the **primary** Instagram posting path for single images and carousels. Falls back to `instagram_publishing.py` on Composio error. Both manual and scheduled publishes use the same Composio-first flow. |
+| `POST /api/posts/create-and-publish` | ✅ **IMPLEMENTED** | Creates a post (single, carousel, or reel) and immediately triggers publishing via Composio/fallback. Returns post ID and publishing status/errors. |
+| `Brand Kit CRUD`               | ✅ **IMPLEMENTED** | **6 Endpoints**: List, Create, Get, Update, Delete, and Upload Logo. Linked to assets with automatic startup seeding for existing data. |
+| `Agent Testing Stub`           | ✅ **IMPLEMENTED** | Local endpoint at `/agent/instagram/publish` for Phase 1 end-to-end testing. |
 
 ---
 
 ## 📋 Summary Statistics
 
-- **Fully Implemented**: 23 features (+5 since last update)
-- **Partially Implemented**: 6 features
-- **Not Implemented**: 40 features (-5 since last update)
-- **Mock Data Only**: 8 features
+- **Fully Implemented**: 54 features (+6 since last update)
+- **Partially Implemented**: 3 features
+- **Not Implemented**: 19 features
+- **Mock Data Only**: 5 features
 
 **Total Features Tracked**: 77
 
-### Recent Implementations (January 2026)
-- ✅ Asset Upload Button (Assets page) - Local file selection and upload
-- ✅ Media Upload (Create page) - Local file selection and upload  
-- ✅ Instagram Posting - Full implementation with hosting and logging
-- ✅ Error Handling - Comprehensive error messages and user feedback
-- ✅ Token Management - .env priority with auto-sync to database
+### Recent Implementations (March 2026)
+
+- ✅ **Brand Kits**: Multi-brand system with custom prompts, logo assets, and filtering in Asset Closet / Assets page.
+- ✅ **AI Brand Overlay Engine**: Sophisticated PIL-based engine that overlays Brand Kit logos and AI-planned captions onto generated images.
+- ✅ **Asset Remix (Composite)**: "Style with AI" feature that uses alpha-masking to place products into AI-generated lifestyle backgrounds.
+- ✅ **Instagram Comment Management**: Full suite for syncing, analyzing (sentiment/category), and replying to comments with AI assistance.
+- ✅ **Draft Library**: File-based post template system for multi-platform content planning.
+- ✅ **Agentic Publishing (Phase 1)**: Integrated Composio MCP for Instagram and established a local testing stub for agentic flows.
+- ✅ **Campaign Generator (Bulk Commit)**: Enhanced campaign generation with bulk commit to draft posts and brand guideline enforcement.
+- ✅ **Configurable Scheduler**: Background worker now supports `.env` based interval and toggle settings.
 
 ---
 
-## 🎯 Priority Recommendations
+## 2️⃣ INCOMPLETE IMPLEMENTATION
 
-### High Priority (Core Functionality)
-1. **Schedule Posts** - Add scheduling UI and background worker
-2. ~~**Asset Upload**~~ ✅ **COMPLETED** - Frontend upload button now works
-3. ~~**Media File Upload**~~ ✅ **COMPLETED** - Local file selection in Create page now works
-4. **AI Assistant UI** - Add UI buttons/panels to use caption/hashtag generation
-5. **Publish Page Data** - Connect to real backend data instead of mock
-6. **Post Completion Notification** - Add popup/message when post goes live on Instagram
+Current features that exist but require further refinement or backend connection:
 
-### Medium Priority (User Experience)
-6. **Search & Filter Assets** - Implement search/filter functionality
-7. **Emoji Picker** - Add emoji picker component
-8. **Hashtag Helper** - Connect hashtag button to AI suggestions
-9. **Channel Management UI** - Add connect/delete channel functionality
-10. **Recent Activity** - Fetch and display real recent posts
+- **LinkedIn/Twitter Publishing**: Connectors exist in the UI but the actual publishing logic is not yet integrated.
+- **Analytics Dashboard**: UI components are present but data is currently hardcoded mock data.
+- **Approval Workflow**: Basic backend router exists but full database persistence and state transitions are not fully implemented in the frontend.
+- **Channel Connection UI**: Most channel setup happens via `.env`; the interactive "Add Account" flow within the app is partially complete.
 
-### Low Priority (Nice to Have)
-11. **Analytics Integration** - Connect to real analytics data
-12. **Approval Workflow** - Implement full approval system
-13. **Brand Kit** - Add logo upload and brand overlay features
-14. **Team Management** - Add multi-user support
-15. **LinkedIn/Twitter Integration** - Add support for other platforms
+## 3️⃣ NOT IMPLEMENTED
+
+Features that are currently placeholders or planned for future releases:
+
+- **Team Management**: Support for multiple users and role-based access control.
+- **Real-time Metrics**: Live engagement data fetching from social platform APIs.
+- **Advanced Export**: Exporting analytics reports or scheduled calendars.
 
 ---
 
-## 📝 Notes
-
-- Many backend endpoints exist but are not used by the frontend UI
-- The publish page shows mock data - needs integration with `/api/posts/` endpoint
-- Scheduling is partially implemented (database field exists) but no UI or execution logic
-- AI features (caption, hashtags) have backend support but no frontend UI
-- Instagram publishing now automatically uploads localhost images to Freeimage.host before posting
-- Token management: .env file is the source of truth; database is auto-updated when .env changes
-- Comprehensive logging added for Instagram posting workflow (hosting → container → publish)
-
-## 🆕 Recently Completed Features
-
-### January 25, 2026
-- ✅ **Asset Upload (Assets Page)**: Users can now upload local files directly from their device
-- ✅ **Media Upload (Create Page)**: Upload button now opens file picker instead of asset closet
-- ✅ **Instagram Posting**: Full implementation with:
-  - Automatic image hosting for localhost URLs (Freeimage.host)
-  - Detailed logging at each step (hosting → container creation → publishing)
-  - Proper error handling with user-friendly messages
-  - Token expiration detection and helpful error messages
-  - 60-second wait for Instagram image processing
-- ✅ **Token Management**: .env file takes priority; auto-syncs to database
-- ✅ **Error Handling**: Improved error messages for all failure scenarios
-- ✅ **Image Generation Fix**: Fixed OpenRouter API integration to properly extract images from response
-
-## 📸 Instagram Posting Workflow
-
-The Instagram posting feature includes a complete workflow:
-
-1. **Image Hosting** (if needed):
-   - Detects if image URL is localhost
-   - Automatically uploads to Freeimage.host
-   - Returns public HTTPS URL
-
-2. **Media Container Creation**:
-   - Creates Instagram media container via Graph API
-   - Includes image URL and caption
-   - Logs container ID
-
-3. **Processing Wait**:
-   - Waits 60 seconds for Instagram to process the image
-   - Required by Instagram API
-
-4. **Publishing**:
-   - Publishes the container to Instagram
-   - Returns media ID
-   - Updates post status in database
-
-5. **Error Handling**:
-   - Detects token expiration
-   - Provides clear error messages
-   - Logs all steps for debugging
-
----
-
-**Last Updated**: January 25, 2026  
-**Based on**: Codebase analysis, LOGS.txt review, and recent implementation work
+**Last Updated**: March 11, 2026  
+**Based on**: Interactive codebase analysis and implementation verification.

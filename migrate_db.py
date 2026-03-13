@@ -28,6 +28,17 @@ def migrate():
             print(f"✅ Added column {col_name}")
         except sqlite3.OperationalError:
             print(f"ℹ️ Column {col_name} already exists")
+
+    # ── Assets table migrations ──────────────────────────────────────────────
+    asset_columns = [
+        ("system_prompt", "TEXT"),
+    ]
+    for col_name, col_type in asset_columns:
+        try:
+            cursor.execute(f"ALTER TABLE assets ADD COLUMN {col_name} {col_type}")
+            print(f"✅ Added column assets.{col_name}")
+        except sqlite3.OperationalError:
+            print(f"ℹ️ Column assets.{col_name} already exists")
             
     conn.commit()
     conn.close()

@@ -4,26 +4,38 @@ from datetime import datetime
 import requests
 import base64
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from fastapi import HTTPException
 import logging
 
+from .ai_assistant import get_image_overlay_plan
+
 logger = logging.getLogger(__name__)
 
-async def generate_images_service(prompt: str, count: int = 1, model: str = "google/gemini-2.5-flash-image"):
+async def generate_images_service(prompt: str, user_prompt: str = "", count: int = 1, model: str = "google/google/gemini-2.5-flash-image"):
     """
-    Generates images using OpenRouter API with Gemini 2.5 Flash Image model.
+    Generates images using OpenRouter API with Gemini 2.5 Flash Image model,
+    and automatically overlays the ONIDA logo and a generated subtle caption.
     """
     generated_paths = []
     output_dir = "generated_images"
     os.makedirs(output_dir, exist_ok=True)
     
+    # Pre-fetch the overlay plan using the raw user prompt
+    overlay_plan = {"logo_position": "BOTTOM-RIGHT-CORNER", "caption_text": "", "caption_position": "TOP-CENTER"}
+    if user_prompt:
+        try:
+            overlay_plan = await get_image_overlay_plan(user_prompt)
+            logger.info(f"Generated overlay plan: {overlay_plan}")
+        except Exception as e:
+            logger.error(f"Failed to generate overlay plan, using defaults: {e}")
+
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         logger.warning("OPENROUTER_API_KEY not found. Falling back to mock generation for testing.")
         # Fallback to mock if no key (so app doesn't crash during dev without keys)
         import random
-        from PIL import ImageDraw
+        # from PIL import ImageDraw # This import is now at the top level
         for i in range(count):
             color = (random.randint(50, 200), random.randint(50, 200), random.randint(50, 200))
             img = Image.new('RGB', (1024, 1024), color=color)
@@ -64,6 +76,7 @@ async def generate_images_service(prompt: str, count: int = 1, model: str = "goo
                     "aspect_ratio": "1:1",  # Square for social media
                     "image_size": "2K"
                 }
+                # Note: max_tokens is intentionally omitted — image models don't use it
             }
             
             logger.info(f"Generating image {i+1}/{count} with prompt: {prompt[:50]}...")
@@ -122,7 +135,129 @@ async def generate_images_service(prompt: str, count: int = 1, model: str = "goo
                 background = Image.new("RGB", image.size, (255, 255, 255))
                 background.paste(image, mask=image.split()[-1] if image.mode == "RGBA" else None)
                 image = background
-            
+
+            # --- POST PROCESSING: APPLY LOGO AND CAPTION OVERLAY ---
+            try:
+                img_w, img_h = image.size
+                margin = int(img_w * 0.05) # 5% margin
+                
+                # 1. Overlay Logo
+                logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'onida_logo.png')
+                if os.path.exists(logo_path):
+                    with Image.open(logo_path) as logo:
+                        if logo.mode != 'RGBA':
+                            logo = logo.convert('RGBA')
+                        
+                        # Scale logo to 20% of image width
+                        target_logo_w = int(img_w * 0.20)
+                        aspect_ratio = logo.height / logo.width
+                        target_logo_h = int(target_logo_w * aspect_ratio)
+                        
+                        # Use LANCZOS for high quality downsampling
+                        logo_resized = logo.resize((target_logo_w, target_logo_h), Image.Resampling.LANCZOS)
+                        
+                        # Calculate position
+                        pos_str = overlay_plan.get("logo_position", "BOTTOM-RIGHT-CORNER")
+                        if "TOP-LEFT" in pos_str:
+                            pos = (margin, margin)
+                        elif "TOP-RIGHT" in pos_str:
+                            pos = (img_w - target_logo_w - margin, margin)
+                        elif "BOTTOM-LEFT" in pos_str:
+                            pos = (margin, img_h - target_logo_h - margin)
+                        elif "BOTTOM-RIGHT" in pos_str:
+                            pos = (img_w - target_logo_w - margin, img_h - target_logo_h - margin)
+                        elif "TOP-CENTER" in pos_str:
+                            pos = ((img_w - target_logo_w) // 2, margin)
+                        elif "BOTTOM-CENTER" in pos_str:
+                            pos = ((img_w - target_logo_w) // 2, img_h - target_logo_h - margin)
+                        else:
+                            pos = (img_w - target_logo_w - margin, img_h - target_logo_h - margin)
+                        
+                        # Paste using alpha channel
+                        image.paste(logo_resized, pos, logo_resized)
+                        logger.info(f"Ovelayed ONIDA logo at {pos_str}")
+                else:
+                    logger.warning(f"ONIDA logo not found at {logo_path}")
+
+                # 2. Overlay Caption
+                caption_text = overlay_plan.get("caption_text")
+                if caption_text:
+                    draw = ImageDraw.Draw(image, "RGBA")
+                    
+                    font_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Inter-Bold.ttf')
+                    font_size = int(img_h * 0.05) # 5% height (Half of previous 10%)
+                    font_size = max(72, min(font_size, 92)) # Clamp to half of previous size
+                    
+                    try:
+                        font = ImageFont.truetype(font_path, font_size)
+                    except IOError:
+                        logger.warning(f"Font {font_path} not found. Using default font.")
+                        font = ImageFont.load_default()
+                    
+                    # Calculate text size using font metrics
+                    letter_spacing = int(font_size * 0.05) # 5% spacing for crisp definition
+                    text_w = sum(font.getlength(c) for c in caption_text) + (len(caption_text) - 1) * letter_spacing
+                    left, top, right, bottom = font.getbbox(caption_text)
+                    text_h = bottom - top
+                    
+                    # Ensure text fits within image width
+                    if text_w > img_w - (margin * 2):
+                        # Simple naive scaling if text is too wide
+                        scale_factor = (img_w - (margin * 2)) / text_w
+                        font_size = int(font_size * scale_factor)
+                        font_size = max(40, min(font_size, 92)) # Allow scaling down more to ensure it fits
+                        try:
+                            font = ImageFont.truetype(font_path, font_size)
+                            letter_spacing = int(font_size * 0.05)
+                            text_w = sum(font.getlength(c) for c in caption_text) + (len(caption_text) - 1) * letter_spacing
+                            left, top, right, bottom = font.getbbox(caption_text)
+                            text_h = bottom - top
+                        except IOError:
+                            pass
+                    
+                    # Calculate position
+                    cap_pos_str = overlay_plan.get("caption_position", "TOP-CENTER")
+                    cap_margin = int(img_w * 0.08) # Slightly larger margin for text
+                    
+                    if "TOP-LEFT" in cap_pos_str:
+                        cap_pos = (cap_margin, cap_margin)
+                    elif "TOP-RIGHT" in cap_pos_str:
+                        cap_pos = (img_w - text_w - cap_margin, cap_margin)
+                    elif "BOTTOM-LEFT" in cap_pos_str:
+                        cap_pos = (cap_margin, img_h - text_h - cap_margin)
+                    elif "BOTTOM-RIGHT" in cap_pos_str:
+                        cap_pos = (img_w - text_w - cap_margin, img_h - text_h - cap_margin)
+                    elif "TOP-CENTER" in cap_pos_str:
+                        cap_pos = ((img_w - text_w) // 2, cap_margin)
+                    elif "BOTTOM-CENTER" in cap_pos_str:
+                        cap_pos = ((img_w - text_w) // 2, img_h - text_h - cap_margin)
+                    else:
+                        cap_pos = ((img_w - text_w) // 2, cap_margin) # Default TOP-CENTER
+                        
+                    # Draw a subtle semi-transparent dark background for readability
+                    bg_padding = [int(font_size * 0.5), int(font_size * 0.3)] # left/right, top/bottom
+                    bg_rect = [
+                        cap_pos[0] - bg_padding[0], 
+                        cap_pos[1] - bg_padding[1], 
+                        cap_pos[0] + text_w + bg_padding[0], 
+                        cap_pos[1] + text_h + bg_padding[1]
+                    ]
+                    draw.rounded_rectangle(bg_rect, radius=int(font_size*0.3), fill=(0, 0, 0, 140))
+                    
+                    # Draw subtle drop shadow and main text with letter spacing
+                    curr_x = cap_pos[0]
+                    curr_y = cap_pos[1]
+                    for char in caption_text:
+                        draw.text((curr_x+3, curr_y+3), char, font=font, fill=(0, 0, 0, 180)) # Crisp shadow
+                        draw.text((curr_x, curr_y), char, font=font, fill=(255, 255, 255, 255)) # Main text without bulky stroke
+                        curr_x += dict(Right=font.getlength(char)).get('Right', 0) + letter_spacing
+                        
+                    logger.info(f"Ovelayed caption '{caption_text}' at {cap_pos_str}")
+                
+            except Exception as e:
+                logger.error(f"Failed to apply post-processing overlay: {e}")
+                
+            # Save the composite image
             image.save(file_path, "JPEG", quality=95)
             logger.info(f"Image saved successfully: {file_path}")
             

@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import {
     Instagram, Linkedin, Twitter,
     Image as ImageIcon, Smile, Hash,
-    Calendar, Send, ChevronDown, Check, MoreHorizontal, Loader2, X
+    Calendar, Send, ChevronDown, Check, MoreHorizontal, Loader2, X, Trash2, BookMarked, Megaphone, Palette, ArrowLeft, Image as ImageIcon2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { connectorsApi, assetsApi, postsApi, aiApi } from '@/lib/api';
+import { connectorsApi, assetsApi, postsApi, aiApi, draftsApi, campaignsApi, type DraftMeta, type DraftFile, type CampaignMeta, type CampaignFile } from '@/lib/api';
 import { ScheduleModal } from '@/components/schedule-modal';
 import { ImageEditorModal } from '@/components/image-editor-modal';
 
@@ -23,6 +23,17 @@ interface Asset {
     id: number;
     file_path: string;
     prompt: string;
+    brand_kit_id?: number | null;
+}
+
+interface BrandKit {
+    id: number;
+    name: string;
+    description: string | null;
+    logo_light_path: string | null;
+    logo_dark_path: string | null;
+    is_default: boolean;
+    asset_count: number;
 }
 
 interface Channel {
@@ -43,6 +54,20 @@ export default function CreatePage() {
     const [previewPlatform, setPreviewPlatform] = useState('instagram');
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 
+    // Closet tab state
+    const [closetTab, setClosetTab] = useState<'assets' | 'drafts' | 'campaigns' | 'brand_kits'>('assets');
+
+    // Brand kits closet state
+    const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
+    const [selectedBrandKit, setSelectedBrandKit] = useState<BrandKit | null>(null);
+    const [brandKitAssets, setBrandKitAssets] = useState<Asset[]>([]);
+    const [brandKitAssetsLoading, setBrandKitAssetsLoading] = useState(false);
+    const [drafts, setDrafts] = useState<DraftMeta[]>([]);
+    const [campaigns, setCampaigns] = useState<CampaignMeta[]>([]);
+    const [selectedCampaign, setSelectedCampaign] = useState<CampaignFile | null>(null);
+    const [isClosetLoading, setIsClosetLoading] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
+
     // Editor State
     const [showImageEditor, setShowImageEditor] = useState(false);
     const [editorImageSrc, setEditorImageSrc] = useState<string>('');
@@ -62,6 +87,106 @@ export default function CreatePage() {
                 toast.error('Failed to load assets');
             });
     }, []);
+
+    // Fetch drafts, campaigns & brand kits when closet opens
+    const handleOpenCloset = () => {
+        setShowAssetModal(true);
+        setIsClosetLoading(true);
+        Promise.all([
+            draftsApi.list(),
+            campaignsApi.list(),
+            fetch('http://localhost:8000/api/brand-kits/').then(r => r.json()),
+        ])
+            .then(([draftData, campaignData, kitsData]) => {
+                setDrafts(draftData);
+                setCampaigns(campaignData);
+                setBrandKits(kitsData);
+            })
+            .catch(err => toast.error('Failed to load closet data: ' + err.message))
+            .finally(() => setIsClosetLoading(false));
+    };
+
+    const handleSelectBrandKit = async (kit: BrandKit) => {
+        setSelectedBrandKit(kit);
+        setBrandKitAssetsLoading(true);
+        try {
+            const res = await fetch(`http://localhost:8000/api/assets/?brand_kit_id=${kit.id}`);
+            if (res.ok) setBrandKitAssets(await res.json());
+        } catch (e) {
+            toast.error('Failed to load kit assets');
+        } finally {
+            setBrandKitAssetsLoading(false);
+        }
+    };
+
+    const handleSaveAsDraft = async () => {
+        if (!caption && !media) {
+            toast.error('Nothing to save – add a caption or media first.');
+            return;
+        }
+        setIsSavingDraft(true);
+        try {
+            await draftsApi.create({
+                caption,
+                asset_ids: media ? [media.id] : [],
+                platforms: selectedChannels,
+                source: 'manual',
+            });
+            toast.success('Saved as draft template! View in Asset Closet → Drafts tab.');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save draft');
+        } finally {
+            setIsSavingDraft(false);
+        }
+    };
+
+    const handleDeleteDraft = async (draftId: string) => {
+        try {
+            await draftsApi.delete(draftId);
+            setDrafts(prev => prev.filter(d => d.id !== draftId));
+            toast.success('Draft deleted.');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to delete draft');
+        }
+    };
+
+    const handleApplyDraft = async (draftId: string) => {
+        try {
+            const draft: DraftFile = await draftsApi.getById(draftId);
+            setCaption(draft.caption);
+            if (draft.asset_ids.length > 0) {
+                const found = assets.find(a => a.id === draft.asset_ids[0]);
+                if (found) setMedia(found);
+            }
+            if (draft.platforms.length > 0) setSelectedChannels(draft.platforms);
+            setShowAssetModal(false);
+            toast.success('Draft applied to composer.');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to apply draft');
+        }
+    };
+
+    const handleLoadCampaign = async (campaignId: string) => {
+        try {
+            const campaign: CampaignFile = await campaignsApi.getById(campaignId);
+            setSelectedCampaign(campaign);
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to load campaign');
+        }
+    };
+
+    const handleApplyBlueprint = (blueprint: { blueprint_id: string; caption: string; hashtags: string[]; platform: string; asset_id?: number | null }) => {
+        const hashtagStr = blueprint.hashtags.join(' ');
+        setCaption(blueprint.caption + (hashtagStr ? `\n\n${hashtagStr}` : ''));
+        if (blueprint.asset_id) {
+            const found = assets.find(a => a.id === blueprint.asset_id);
+            if (found) setMedia(found);
+        }
+        setSelectedChannels([blueprint.platform]);
+        setShowAssetModal(false);
+        toast.success(`Blueprint applied from "${selectedCampaign?.title}"`);
+    };
+
 
     const toggleChannel = (id: string) => {
         setSelectedChannels(prev =>
@@ -400,7 +525,7 @@ export default function CreatePage() {
                                             Upload
                                         </label>
                                         <button
-                                            onClick={() => setShowAssetModal(true)}
+                                            onClick={handleOpenCloset}
                                             className="text-xs bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-md font-medium text-blue-700 hover:bg-blue-100 hover:scale-105 transition-transform"
                                         >
                                             Open Asset Closet
@@ -414,9 +539,20 @@ export default function CreatePage() {
 
                 {/* Footer Actions */}
                 <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/30">
-                    <button onClick={() => handlePost('draft')} disabled={isSubmitting} className="text-gray-500 text-sm font-medium hover:text-gray-900 px-2 transition-colors">
-                        Save as Draft
-                    </button>
+                    <div className="flex gap-2 items-center">
+                        <button onClick={() => handlePost('draft')} disabled={isSubmitting} className="text-gray-500 text-sm font-medium hover:text-gray-900 px-2 transition-colors">
+                            Save as Draft
+                        </button>
+                        <button
+                            onClick={handleSaveAsDraft}
+                            disabled={isSavingDraft}
+                            className="flex items-center gap-1.5 text-xs text-indigo-600 border border-indigo-200 bg-indigo-50 px-3 py-1.5 rounded-md font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60"
+                            title="Save current caption + media as a reusable template in the Draft Library"
+                        >
+                            <BookMarked className="w-3.5 h-3.5" />
+                            {isSavingDraft ? 'Saving…' : 'Save as Template'}
+                        </button>
+                    </div>
                     <div className="flex gap-2">
                         <button
                             disabled={isSubmitting}
@@ -596,7 +732,7 @@ export default function CreatePage() {
                 </div>
             </motion.div>
 
-            {/* Asset Modal */}
+            {/* Asset Closet Modal – 3 tabs */}
             <AnimatePresence>
                 {showAssetModal && (
                     <motion.div
@@ -604,34 +740,327 @@ export default function CreatePage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-6"
+                        onClick={(e) => { if (e.target === e.currentTarget) setShowAssetModal(false); }}
                     >
                         <motion.div
                             initial={{ scale: 0.95, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.95, y: 20 }}
-                            className="bg-white rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden"
+                            className="bg-white rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
                         >
-                            <div className="p-4 border-b flex items-center justify-between">
-                                <h3 className="font-semibold text-lg">Select Asset</h3>
-                                <button onClick={() => setShowAssetModal(false)}><X className="w-5 h-5 text-gray-500 hover:text-gray-900" /></button>
+                            {/* Modal header */}
+                            <div className="p-4 border-b flex items-center justify-between shrink-0">
+                                <h3 className="font-semibold text-lg">Asset Closet</h3>
+                                <button onClick={() => setShowAssetModal(false)}>
+                                    <X className="w-5 h-5 text-gray-500 hover:text-gray-900" />
+                                </button>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {assets.map(asset => (
-                                        <div
-                                            key={asset.id}
-                                            onClick={() => { setMedia(asset); setShowAssetModal(false); }}
-                                            className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 relative group"
-                                        >
-                                            <img
-                                                src={`http://localhost:8000/${asset.file_path.replace(/^\.?\//, '')}`}
-                                                className="w-full h-full object-cover"
-                                            />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+
+                            {/* Tabs */}
+                            <div className="flex border-b shrink-0 bg-white text-sm px-4">
+                                <button
+                                    className={cn('px-4 py-2.5 font-medium border-b-2 transition-colors', closetTab === 'assets' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800')}
+                                    onClick={() => setClosetTab('assets')}
+                                >
+                                    Generated Images
+                                </button>
+                                <button
+                                    className={cn('px-4 py-2.5 font-medium border-b-2 transition-colors', closetTab === 'drafts' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800')}
+                                    onClick={() => setClosetTab('drafts')}
+                                >
+                                    Drafts{drafts.length > 0 && <span className="ml-1.5 bg-indigo-100 text-indigo-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">{drafts.length}</span>}
+                                </button>
+                                <button
+                                    className={cn('px-4 py-2.5 font-medium border-b-2 transition-colors', closetTab === 'campaigns' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800')}
+                                    onClick={() => { setClosetTab('campaigns'); setSelectedCampaign(null); }}
+                                >
+                                    Campaigns{campaigns.length > 0 && <span className="ml-1.5 bg-purple-100 text-purple-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">{campaigns.length}</span>}
+                                </button>
+                                <button
+                                    className={cn('px-4 py-2.5 font-medium border-b-2 transition-colors', closetTab === 'brand_kits' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-800')}
+                                    onClick={() => { setClosetTab('brand_kits'); setSelectedBrandKit(null); setBrandKitAssets([]); }}
+                                >
+                                    Brand Kits{brandKits.length > 0 && <span className="ml-1.5 bg-indigo-100 text-indigo-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">{brandKits.length}</span>}
+                                </button>
+                            </div>
+
+                            {/* Tab body — min-h-0 lets children own their own scroll within the flex-col modal */}
+                            <div className="flex-1 min-h-0 flex flex-col">
+
+                                {/* ── ASSETS TAB ────────────────────────────── */}
+                                {closetTab === 'assets' && (
+                                    <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50">
+                                        {assets.length === 0 ? (
+                                            <p className="text-center text-gray-500 py-16">No assets yet. Head to the Assets page to generate some!</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                {assets.map(asset => (
+                                                    <div
+                                                        key={asset.id}
+                                                        onClick={() => { setMedia(asset); setShowAssetModal(false); }}
+                                                        className="aspect-square bg-gray-200 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 relative group"
+                                                    >
+                                                        <img
+                                                            src={`http://localhost:8000/${asset.file_path.replace(/^\.?\//, '')}`}
+                                                            className="w-full h-full object-cover"
+                                                            alt="asset"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end p-2 opacity-0 group-hover:opacity-100">
+                                                            <span className="text-white text-xs bg-black/60 rounded px-2 py-0.5">Use this</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* ── DRAFTS TAB ────────────────────────────── */}
+                                {closetTab === 'drafts' && (
+                                    <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50">
+                                        {isClosetLoading ? (
+                                            <div className="flex items-center justify-center py-20">
+                                                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                            </div>
+                                        ) : drafts.length === 0 ? (
+                                            <div className="text-center py-16">
+                                                <BookMarked className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                                                <p className="text-gray-500 font-medium">No draft templates yet.</p>
+                                                <p className="text-gray-400 text-sm mt-1">Use <strong>Save as Template</strong> in the composer to create one.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {drafts.map(draft => (
+                                                    <div key={draft.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-start gap-4 hover:border-blue-200 transition-colors group">
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm text-gray-900 line-clamp-2">{draft.caption}</p>
+                                                            <div className="flex items-center gap-3 mt-2">
+                                                                <span className="text-xs text-gray-400">{draft.asset_count} asset{draft.asset_count !== 1 ? 's' : ''}</span>
+                                                                {draft.platforms.map(p => (
+                                                                    <span key={p} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{p}</span>
+                                                                ))}
+                                                                <span className="text-xs text-gray-400">{new Date(draft.created_at).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2 shrink-0">
+                                                            <button
+                                                                onClick={() => handleApplyDraft(draft.id)}
+                                                                className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                                            >
+                                                                Apply
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteDraft(draft.id)}
+                                                                className="text-xs text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                                                title="Delete draft"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* ── CAMPAIGNS TAB ─────────────────────────── */}
+                                {closetTab === 'campaigns' && (
+                                    <div className="flex-1 min-h-0 flex">
+                                        {/* Left: campaign list */}
+                                        <div className="w-72 shrink-0 border-r overflow-y-auto bg-gray-50 p-3 space-y-2">
+                                            {isClosetLoading ? (
+                                                <div className="flex items-center justify-center py-20">
+                                                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                                </div>
+                                            ) : campaigns.length === 0 ? (
+                                                <div className="text-center py-12 px-4">
+                                                    <Megaphone className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                                                    <p className="text-gray-500 text-sm font-medium">No campaigns yet.</p>
+                                                    <p className="text-gray-400 text-xs mt-1">Generate one from the Campaigns page.</p>
+                                                </div>
+                                            ) : campaigns.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    onClick={() => handleLoadCampaign(c.id)}
+                                                    className={cn(
+                                                        'w-full text-left p-3 rounded-xl border transition-all group',
+                                                        selectedCampaign?.id === c.id
+                                                            ? 'border-purple-400 bg-purple-50 ring-1 ring-purple-300'
+                                                            : 'border-gray-200 bg-white hover:border-purple-200 hover:bg-purple-50/40'
+                                                    )}
+                                                >
+                                                    <p className={cn('text-sm font-semibold truncate', selectedCampaign?.id === c.id ? 'text-purple-900' : 'text-gray-800')}>{c.title}</p>
+                                                    <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{c.strategy}</p>
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <span className="text-xs text-gray-400">{c.post_count} post{c.post_count !== 1 ? 's' : ''}</span>
+                                                        {c.platforms.slice(0, 3).map(p => (
+                                                            <span key={p} className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full capitalize">{p}</span>
+                                                        ))}
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                                {assets.length === 0 && <p className="text-center text-gray-500 py-10">No assets found. Go to Assets page to generate some!</p>}
+
+                                        {/* Right: selected campaign's blueprints */}
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-5">
+                                            {!selectedCampaign ? (
+                                                <div className="flex flex-col items-center justify-center h-full text-center">
+                                                    <Megaphone className="w-10 h-10 text-gray-200 mb-3" />
+                                                    <p className="text-gray-400">Select a campaign to view its posts</p>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="mb-4">
+                                                        <h4 className="font-semibold text-gray-900">{selectedCampaign.title}</h4>
+                                                        <p className="text-sm text-gray-500 mt-1">{selectedCampaign.strategy}</p>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        {selectedCampaign.posts.map(bp => (
+                                                            <div key={bp.blueprint_id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-purple-200 transition-colors">
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-2">
+                                                                            <span className={cn(
+                                                                                'text-xs font-semibold px-2 py-0.5 rounded-full capitalize',
+                                                                                bp.platform === 'instagram' ? 'bg-pink-100 text-pink-700' :
+                                                                                bp.platform === 'linkedin' ? 'bg-blue-100 text-blue-700' :
+                                                                                'bg-gray-100 text-gray-700'
+                                                                            )}>
+                                                                                {bp.platform}
+                                                                            </span>
+                                                                            {bp.status === 'committed' && (
+                                                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Committed</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-sm text-gray-800 line-clamp-3">{bp.caption}</p>
+                                                                        {bp.hashtags.length > 0 && (
+                                                                            <p className="text-xs text-blue-500 mt-1.5 line-clamp-1">{bp.hashtags.join(' ')}</p>
+                                                                        )}
+                                                                        {bp.image_prompt && !bp.asset_id && (
+                                                                            <p className="text-xs text-orange-500 mt-1">📸 Image idea: {bp.image_prompt}</p>
+                                                                        )}
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => handleApplyBlueprint(bp)}
+                                                                        disabled={bp.status === 'committed'}
+                                                                        className="shrink-0 text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        Use in Composer
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── BRAND KITS TAB ──────────────────────────── */}
+                                {closetTab === 'brand_kits' && (
+                                    <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-gray-50">
+                                        {/* Kit grid view */}
+                                        {!selectedBrandKit ? (
+                                            isClosetLoading ? (
+                                                <div className="flex items-center justify-center py-20">
+                                                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                                </div>
+                                            ) : brandKits.length === 0 ? (
+                                                <div className="text-center py-16">
+                                                    <Palette className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                                                    <p className="text-gray-500 font-medium">No brand kits yet.</p>
+                                                    <p className="text-gray-400 text-sm mt-1">Create one in Settings → Brand tab.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                    {brandKits.map(kit => (
+                                                        <button
+                                                            key={kit.id}
+                                                            onClick={() => handleSelectBrandKit(kit)}
+                                                            className="group bg-white border border-gray-200 rounded-xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all"
+                                                        >
+                                                            {/* Logo thumbnail or icon */}
+                                                            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mb-3 overflow-hidden">
+                                                                {kit.logo_light_path ? (
+                                                                    <img
+                                                                        src={`http://localhost:8000/${kit.logo_light_path.replace(/^\.?\//, '')}`}
+                                                                        alt={kit.name}
+                                                                        className="w-full h-full object-contain p-1"
+                                                                    />
+                                                                ) : (
+                                                                    <Palette className="w-6 h-6 text-indigo-400" />
+                                                                )}
+                                                            </div>
+                                                            <p className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">{kit.name}</p>
+                                                            {kit.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{kit.description}</p>}
+                                                            <div className="flex items-center gap-2 mt-3">
+                                                                <span className="text-xs text-gray-400">{kit.asset_count} asset{kit.asset_count !== 1 ? 's' : ''}</span>
+                                                                {kit.is_default && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">DEFAULT</span>}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )
+                                        ) : (
+                                            /* Asset gallery for selected kit */
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        onClick={() => { setSelectedBrandKit(null); setBrandKitAssets([]); }}
+                                                        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
+                                                    >
+                                                        <ArrowLeft className="w-4 h-4" />
+                                                        Back to Kits
+                                                    </button>
+                                                    <span className="text-gray-300">·</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Palette className="w-4 h-4 text-indigo-500" />
+                                                        <span className="text-sm font-semibold text-gray-900">{selectedBrandKit.name}</span>
+                                                    </div>
+                                                </div>
+                                                {brandKitAssetsLoading ? (
+                                                    <div className="flex items-center justify-center py-20">
+                                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                                    </div>
+                                                ) : brandKitAssets.length === 0 ? (
+                                                    <div className="text-center py-16">
+                                                        <ImageIcon2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                                                        <p className="text-gray-500 font-medium">No assets for this kit yet.</p>
+                                                        <p className="text-gray-400 text-sm mt-1">Generate images with this kit selected on the Assets page.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {brandKitAssets.map(asset => (
+                                                            <div
+                                                                key={asset.id}
+                                                                onClick={() => { setMedia(asset); setShowAssetModal(false); }}
+                                                                className="relative aspect-square bg-gray-200 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 group"
+                                                            >
+                                                                <img
+                                                                    src={`http://localhost:8000/${asset.file_path.replace(/^\.?\//, '')}`}
+                                                                    className="w-full h-full object-cover"
+                                                                    alt="asset"
+                                                                />
+                                                                {/* Kit badge */}
+                                                                <div className="absolute top-1.5 left-1.5">
+                                                                    <span className="text-[9px] bg-indigo-600/90 text-white px-1.5 py-0.5 rounded-full font-semibold backdrop-blur-sm">
+                                                                        {selectedBrandKit.name}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end p-2 opacity-0 group-hover:opacity-100">
+                                                                    <span className="text-white text-xs bg-black/60 rounded px-2 py-0.5">Use this</span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                             </div>
                         </motion.div>
                     </motion.div>

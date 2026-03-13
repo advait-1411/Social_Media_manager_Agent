@@ -1,0 +1,75 @@
+{
+  "id": "1af3d7fb-1aad-4503-9114-7e0f15658a3e",
+  "title": "AI Voice Agent for Healthcare Appointments",
+  "strategy": "This campaign highlights the revolutionary use of AI voice agents in the healthcare industry, showcasing how they simplify appointment booking for patients and providers alike, ultimately improving access to healthcare.",
+  "created_at": "2026-03-03 11:49:37.136036+00:00",
+  "updated_at": "2026-03-03 11:49:37.136036+00:00",
+  "business_context": "xayacascs",
+  "guidelines": {
+    "tone": "pro",
+    "legal_footer": "asdasdwqd"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "24f8d9e1-3f6f-4f7a-a67e-2f9b0d9e6f58",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "A bright flat-lay of an AI voice device on a desk with a stethoscope and appointment calendar.",
+      "caption": "\ud83d\udcc5\u2728 Say goodbye to long waits! Our AI voice agent makes booking healthcare appointments a breeze. Experience the future of healthcare today! \ud83d\udca1 #Xayacascs #AIInHealthcare #VoiceTechnology #AppointmentBooking asdasdwqd",
+      "hashtags": [
+        "#Xayacascs",
+        "#AIInHealthcare",
+        "#VoiceTechnology",
+        "#AppointmentBooking"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "d2f4a6b5-e8a6-4e3b-a9b6-8c6ffd39b2c4",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "An illustration of a user speaking to an AI voice agent with a healthcare setting in the background.",
+      "caption": "\ud83c\udf99\ufe0f\ud83d\udc69\u200d\u2695\ufe0f Let your voice be heard! Our AI voice agent understands your needs, helping you book appointments effortlessly. #HealthcareInnovation #Xayacascs #AI #VoiceAssistant asdasdwqd",
+      "hashtags": [
+        "#HealthcareInnovation",
+        "#Xayacascs",
+        "#AI",
+        "#VoiceAssistant"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "1b380c9a-c77e-4da1-bc1e-0dca2e1c0eaf",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "A close-up of a user interacting with an AI voice device in a cozy home environment.",
+      "caption": "\ud83c\udfe0\ud83d\udd0a Booking appointments has never been easier! Just speak, and let our AI voice assistant do the rest. Join us in transforming healthcare! #Xayacascs #VoiceBooking #Healthcare asdasdwqd",
+      "hashtags": [
+        "#Xayacascs",
+        "#VoiceBooking",
+        "#Healthcare"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "a1d5fb6d-01c9-4b0e-bd97-09c14ed10b5f",
+      "platform": "instagram",
+      "asset_id": null,
+      "asset_ids": null,
+      "image_prompt": "A graphic showing the benefits of using AI voice agents in healthcare appointments.",
+      "caption": "\ud83d\ude80\ud83d\udcde Ready to revolutionize your healthcare experience? Our AI voice agent is here to streamline your appointment process. Discover the advantages today! #Xayacascs #AIHealthcare #PatientExperience asdasdwqd",
+      "hashtags": [
+        "#Xayacascs",
+        "#AIHealthcare",
+        "#PatientExperience"
+      ],
+      "status": "blueprint"
+    }
+  ]
+}

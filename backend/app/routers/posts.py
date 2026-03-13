@@ -61,6 +61,67 @@ def create_post(post: PostCreate, db: Session = Depends(get_db)):
     db.refresh(db_post)
     return {"id": db_post.id, "message": "Post created successfully"}
 
+
+@router.post("/create-and-publish", response_model=dict)
+async def create_and_publish_post(post: PostCreate, db: Session = Depends(get_db)):
+    """
+    Create a post (carousel, reel, or image) and immediately trigger the publishing process.
+    If publishing fails, the post is still saved as a draft, and the error is returned.
+    """
+    from ..services.scheduler import publish_post_now
+
+    # 1. Create the post in the database
+    db_post = models.Post(
+        content=post.content,
+        media_assets=post.media_assets,
+        status="draft",  # Start as draft, publish_post_now will update it
+        channels=post.channels,
+        scheduled_time=post.scheduled_time,
+        platform_settings=post.platform_settings
+    )
+    db.add(db_post)
+    db.commit()
+    db.refresh(db_post)
+
+    logger.info(f"[CREATE & PUBLISH] Created post ID: {db_post.id}, starting publish...")
+
+    try:
+        # 2. Trigger publishing immediately
+        media_id = publish_post_now(db, db_post)
+
+        # Emit socket event
+        await socket_manager.emit('post_status', {
+            'id': db_post.id,
+            'status': 'published',
+            'title': db_post.content[:20] + '...' if db_post.content else 'Post',
+            'message': 'Post published successfully!'
+        })
+
+        return {
+            "id": db_post.id,
+            "message": "Post created and published successfully",
+            "status": "published",
+            "media_id": media_id
+        }
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"[CREATE & PUBLISH] ✗ Failed to publish post {db_post.id}: {error_message}")
+        
+        # Provide more helpful error messages
+        if "expired" in error_message.lower() or "token" in error_message.lower():
+            detail_message = f"{error_message}\n\nTo fix this:\n1. Go to https://developers.facebook.com/tools/explorer/\n2. Generate a new long-lived access token\n3. Update INSTAGRAM_ACCESS_TOKEN in backend/.env file\n4. Restart the backend server"
+        else:
+            detail_message = error_message
+        
+        # Return a 200 response with the error details, so the client knows the post was created
+        return {
+            "id": db_post.id,
+            "message": "Post created but publishing failed",
+            "status": "draft",
+            "error": detail_message,
+            "media_id": None
+        }
+
 @router.get("/")
 def get_posts(status: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Post)

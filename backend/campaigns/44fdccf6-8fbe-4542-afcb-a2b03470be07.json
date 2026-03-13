@@ -1,0 +1,64 @@
+{
+  "id": "44fdccf6-8fbe-4542-afcb-a2b03470be07",
+  "title": "Color Your World with ONIDA This Holi",
+  "strategy": "Celebrate Holi with ONIDA by showcasing how our TVs bring vibrant colors and joyful moments into your living room. This campaign will highlight the essence of the festival through playful visuals and engaging storytelling, creating a sense of togetherness and festive spirit.",
+  "created_at": "2026-03-04 06:35:07.844651+00:00",
+  "updated_at": "2026-03-04 06:36:40.989730+00:00",
+  "business_context": "electronics and consumer good",
+  "guidelines": {
+    "tone": "playful and professional"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "f1d17c5d-5b13-4b28-bc7a-1e4d3b6e2b2f",
+      "platform": "instagram",
+      "asset_id": 84,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "Bring the festival of colors into your home with ONIDA! \ud83c\udf08 Watch your favorite Holi celebrations come to life on our stunning TVs. #Holi #ColorYourWorld #YourBrand",
+      "hashtags": [
+        "#Holi",
+        "#ColorYourWorld",
+        "#YourBrand",
+        "#VibrantViewing",
+        "#FestiveFun"
+      ],
+      "status": "committed"
+    },
+    {
+      "blueprint_id": "c1e6c1f8-ed39-4c0a-b658-dea2f045e8a7",
+      "platform": "instagram",
+      "asset_id": 85,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "Celebrate every splash of color this Holi with ONIDA! \ud83d\udca6\u2728 Gather your loved ones and make unforgettable memories on our TVs. #HoliCelebration #JoyfulMoments #YourBrand",
+      "hashtags": [
+        "#HoliCelebration",
+        "#JoyfulMoments",
+        "#YourBrand",
+        "#FamilyTime",
+        "#ColorSplash"
+      ],
+      "status": "committed"
+    },
+    {
+      "blueprint_id": "3a8c25f8-3ebd-4f24-bfb2-6e2a5e5946b4",
+      "platform": "instagram",
+      "asset_id": 86,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "This Holi, let your home shine with the brilliance of ONIDA TVs! \ud83c\udf89\ud83c\udfa8 Experience the magic of colors and togetherness. #Holi2023 #HomeEntertainment #YourBrand",
+      "hashtags": [
+        "#Holi2023",
+        "#HomeEntertainment",
+        "#YourBrand",
+        "#FestivalOfColors",
+        "#Togetherness"
+      ],
+      "status": "committed"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "8190e631-dda0-4a37-b9d2-645a46e24a51",
+  "title": "Introducing Our Newest TV",
+  "strategy": "Showcasing the stunning features and immersive experience of our latest television model, this campaign invites users to explore the world of entertainment like never before. With vibrant visuals and a sleek design, we aim to engage customers through captivating posts.",
+  "created_at": "2026-02-19 17:14:26.432656+00:00",
+  "updated_at": "2026-02-19 17:14:26.432656+00:00",
+  "business_context": "electronics",
+  "guidelines": {
+    "tone": "professional",
+    "legal_footer": "GEN AI STUFF"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "f9b22d00-fd8b-4f8d-a4b4-0f8a8a61e8f8",
+      "platform": "instagram",
+      "asset_id": 12,
+      "image_prompt": null,
+      "caption": "Experience your favorite shows like never before with our latest TV! \ud83c\udf89 Immerse yourself in vibrant colors and stunning clarity. Check it out now! #YourBrand #NewTech #HomeEntertainment GEN AI STUFF",
+      "hashtags": [],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "b7ed3f4e-405b-4f57-a1d3-58c9f5d3a2c4",
+      "platform": "instagram",
+      "asset_id": 13,
+      "image_prompt": null,
+      "caption": "Transform your living space with our sleek new TV! \ud83c\udf1f Perfect for movie nights and binge-watching your favorite series. Discover the difference! #YourBrand #SmartTV #InnovativeDesign GEN AI STUFF",
+      "hashtags": [],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "a2e4e0d5-5f9c-4d6b-abf1-4a7c1e2e8d91",
+      "platform": "instagram",
+      "asset_id": 14,
+      "image_prompt": null,
+      "caption": "Step into a new era of entertainment with our latest TV model! \ud83c\udfa5 Stunning visuals await. Don\u2019t miss out on enhancing your viewing experience! #YourBrand #UltraHD #EntertainmentRevolution GEN AI STUFF",
+      "hashtags": [],
+      "status": "blueprint"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "id": "d0bb1e6d-83c6-407b-8c20-07d0a3316fb0",
+  "title": "Television for the New Generation",
+  "strategy": "This campaign focuses on showcasing our latest television models designed for the tech-savvy generation. By highlighting innovative features and smart technology, we aim to engage a younger audience who prioritizes quality entertainment and connectivity in their homes.",
+  "created_at": "2026-02-25 18:17:23.934328+00:00",
+  "updated_at": "2026-02-25 18:17:23.934328+00:00",
+  "business_context": "Electronics",
+  "guidelines": {
+    "tone": "Professional",
+    "legal_footer": "Demo purposes only"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "d9a0e16e-8c51-4978-ae31-2c3f7cb0b1b5",
+      "platform": "instagram",
+      "asset_id": 12,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "Introducing the future of home entertainment! \ud83c\udf1f Experience immersive viewing like never before with our cutting-edge TV. Perfect for binge-watching your favorite shows! \ud83c\udfa5\u2728 #TelevisionForTheNewGen #HomeEntertainment #YourBrand \n\nDemo purposes only",
+      "hashtags": [
+        "#TelevisionForTheNewGen",
+        "#HomeEntertainment",
+        "#YourBrand"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "d13a0bf4-10e3-4c63-bc5d-09c4c1a27a74",
+      "platform": "instagram",
+      "asset_id": 31,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "Upgrade your living room with our sleek and stylish TV! \ud83d\udda5\ufe0f\u2728 With advanced features and stunning visuals, it's perfect for gaming and movie nights! \ud83d\udd79\ufe0f\ud83c\udfac #SmartTV #ModernLiving #YourBrand \n\nDemo purposes only",
+      "hashtags": [
+        "#SmartTV",
+        "#ModernLiving",
+        "#YourBrand"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "2d1fa2d1-f0c3-4a29-b6e1-5f9d8c6b9b0f",
+      "platform": "instagram",
+      "asset_id": 13,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "Connect, stream, and enjoy! \ud83c\udf89 Our latest TV models come with seamless connectivity for all your devices. Ready for a cinematic experience at home? \ud83c\udf10\ud83c\udf7f #NextGenTV #CinematicExperience #YourBrand \n\nDemo purposes only",
+      "hashtags": [
+        "#NextGenTV",
+        "#CinematicExperience",
+        "#YourBrand"
+      ],
+      "status": "blueprint"
+    }
+  ]
+}

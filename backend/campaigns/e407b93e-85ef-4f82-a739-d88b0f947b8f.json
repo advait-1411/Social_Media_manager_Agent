@@ -1,0 +1,65 @@
+{
+  "id": "e407b93e-85ef-4f82-a739-d88b0f947b8f",
+  "title": "Celebrate Holi with ONIDA",
+  "strategy": "This campaign focuses on celebrating the joyous festival of Holi, emphasizing the moments that families create together with ONIDA appliances. The idea is to showcase how ONIDA products can enhance the festive spirit and help save precious memories during family gatherings and celebrations.",
+  "created_at": "2026-02-26 10:47:13.864354+00:00",
+  "updated_at": "2026-02-26 10:47:13.864354+00:00",
+  "business_context": "Electronics and Consumer Goods",
+  "guidelines": {
+    "tone": "Professional and clean",
+    "legal_footer": "testing"
+  },
+  "platforms": [
+    "instagram"
+  ],
+  "posts": [
+    {
+      "blueprint_id": "9f0c4b91-6b66-4e01-9f02-c64f7b26b018",
+      "platform": "instagram",
+      "asset_id": 80,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "This Holi, let\u2019s create memorable moments together! \ud83c\udf08 Celebrate with ONIDA appliances that bring families closer! \ud83d\udc96 #HoliCelebration #OnidaAppliances #FamilyMoments testing",
+      "hashtags": [
+        "#Holi",
+        "#Onida",
+        "#FestiveSeason",
+        "#FamilyTime",
+        "#CelebrateTogether"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "a7f7f3e7-0d94-4c82-a1a3-effe7c6d6d47",
+      "platform": "instagram",
+      "asset_id": 82,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "This Holi, let the colors of joy fill your home! \ud83c\udf38 Experience the magic of togetherness with ONIDA. \u2728 #HoliMagic #OnidaAppliances #MomentsThatMatter testing",
+      "hashtags": [
+        "#Holi",
+        "#Onida",
+        "#CelebrateJoy",
+        "#FamilyFirst",
+        "#MemorableMoments"
+      ],
+      "status": "blueprint"
+    },
+    {
+      "blueprint_id": "3d1c4c6b-e69b-4bc0-b56d-4e0c380547c6",
+      "platform": "instagram",
+      "asset_id": 83,
+      "asset_ids": null,
+      "image_prompt": null,
+      "caption": "Celebrate the spirit of Holi with ONIDA! \ud83e\udd73 Make every moment special with our trusted appliances. \ud83c\udf89 #Holi2023 #OnidaAppliances #CelebrateLife testing",
+      "hashtags": [
+        "#Holi",
+        "#Onida",
+        "#FestiveVibes",
+        "#FamilyFun",
+        "#Togetherness"
+      ],
+      "status": "blueprint"
+    }
+  ]
+}

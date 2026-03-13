@@ -165,3 +165,148 @@ def post_to_instagram(image_url: str, caption: str, user_id: str, token: str):
         logger.error(f"[INSTAGRAM] Error: {str(e)}")
         logger.error(f"[INSTAGRAM] ========================================")
         raise e
+
+
+# ─── Carousel helpers ──────────────────────────────────────────────────────────
+
+def create_carousel_child_container(
+    instagram_user_id: str, image_url: str, access_token: str
+) -> str:
+    """Create a single carousel child media container (no caption, is_carousel_item=true)."""
+    api_version = os.getenv("INSTAGRAM_API_VERSION", "v21.0")
+    url = f"https://graph.facebook.com/{api_version}/{instagram_user_id}/media"
+
+    data = {
+        "image_url": image_url,
+        "is_carousel_item": "true",
+        "access_token": access_token,
+    }
+    logger.info(f"[INSTAGRAM] Creating carousel child container for: {image_url[:60]}…")
+
+    try:
+        response = requests.post(url, json=data, timeout=90)
+        response.raise_for_status()
+        result = response.json()
+        child_id = result.get("id")
+        if not child_id:
+            raise Exception(f"No child container ID returned: {result}")
+        logger.info(f"[INSTAGRAM] ✓ Carousel child container created: {child_id}")
+        return child_id
+    except requests.exceptions.HTTPError as e:
+        error_data = {}
+        error_message = "Unknown error"
+        try:
+            if e.response.text:
+                error_data = e.response.json()
+                if isinstance(error_data, dict) and "error" in error_data:
+                    error_obj = error_data["error"]
+                    if isinstance(error_obj, dict):
+                        error_message = error_obj.get("message", str(e))
+        except Exception:
+            error_data = {"raw_response": e.response.text[:500] if e.response.text else "No response"}
+        logger.error(f"[INSTAGRAM] ✗ HTTP error creating carousel child: {error_data}")
+        raise Exception(f"Instagram API error (child container): {error_message}")
+    except Exception as e:
+        logger.error(f"[INSTAGRAM] ✗ Error creating carousel child container: {str(e)}")
+        raise
+
+
+def create_carousel_container(
+    instagram_user_id: str,
+    child_ids: list,
+    caption: str,
+    access_token: str,
+) -> str:
+    """Create the parent CAROUSEL media container using collected child container IDs."""
+    api_version = os.getenv("INSTAGRAM_API_VERSION", "v21.0")
+    url = f"https://graph.facebook.com/{api_version}/{instagram_user_id}/media"
+
+    data = {
+        "media_type": "CAROUSEL",
+        "children": ",".join(child_ids),
+        "access_token": access_token,
+    }
+    if caption:
+        data["caption"] = caption
+
+    logger.info(f"[INSTAGRAM] Creating CAROUSEL container with {len(child_ids)} children…")
+
+    try:
+        response = requests.post(url, json=data, timeout=90)
+        response.raise_for_status()
+        result = response.json()
+        carousel_id = result.get("id")
+        if not carousel_id:
+            raise Exception(f"No carousel container ID returned: {result}")
+        logger.info(f"[INSTAGRAM] ✓ Carousel container created: {carousel_id}")
+        return carousel_id
+    except requests.exceptions.HTTPError as e:
+        error_data = {}
+        error_message = "Unknown error"
+        try:
+            if e.response.text:
+                error_data = e.response.json()
+                if isinstance(error_data, dict) and "error" in error_data:
+                    error_obj = error_data["error"]
+                    if isinstance(error_obj, dict):
+                        error_message = error_obj.get("message", str(e))
+        except Exception:
+            error_data = {"raw_response": e.response.text[:500] if e.response.text else "No response"}
+        logger.error(f"[INSTAGRAM] ✗ HTTP error creating carousel container: {error_data}")
+        raise Exception(f"Instagram API error (carousel container): {error_message}")
+    except Exception as e:
+        logger.error(f"[INSTAGRAM] ✗ Error creating carousel container: {str(e)}")
+        raise
+
+
+def post_carousel_to_instagram(
+    image_urls: list, caption: str, user_id: str, token: str
+) -> str:
+    """
+    Orchestrate a multi-image Instagram Carousel post:
+
+    1. Create child media containers (one per image).
+    2. Wait for Instagram to process each image.
+    3. Create the parent CAROUSEL container.
+    4. Publish the CAROUSEL container.
+
+    Returns:
+        str: The published Instagram media ID.
+    """
+    logger.info(f"[INSTAGRAM] ========================================")
+    logger.info(f"[INSTAGRAM] Starting Instagram CAROUSEL post ({len(image_urls)} images)")
+    logger.info(f"[INSTAGRAM] ========================================")
+
+    try:
+        # Step 1 – Create child containers
+        logger.info(f"[INSTAGRAM] Step 1/3: Creating {len(image_urls)} child containers…")
+        child_ids = []
+        for idx, img_url in enumerate(image_urls):
+            logger.info(f"[INSTAGRAM]   Child {idx + 1}/{len(image_urls)}: {img_url[:60]}")
+            child_id = create_carousel_child_container(user_id, img_url, token)
+            child_ids.append(child_id)
+        logger.info(f"[INSTAGRAM] Created carousel children: {child_ids}")
+
+        # Step 2 – Wait for Instagram processing
+        wait_time = 60
+        logger.info(
+            f"[INSTAGRAM] Step 2/3: Waiting {wait_time}s for Instagram to process images…"
+        )
+        time.sleep(wait_time)
+        logger.info(f"[INSTAGRAM] ✓ Wait completed")
+
+        # Step 3 – Create carousel container + publish
+        logger.info(f"[INSTAGRAM] Step 3/3: Creating carousel container and publishing…")
+        carousel_container_id = create_carousel_container(user_id, child_ids, caption, token)
+        media_id = publish_media_container(user_id, carousel_container_id, token)
+
+        logger.info(f"[INSTAGRAM] ========================================")
+        logger.info(f"[INSTAGRAM] ✓ Carousel published successfully! Media ID: {media_id}")
+        logger.info(f"[INSTAGRAM] ========================================")
+        return media_id
+
+    except Exception as e:
+        logger.error(f"[INSTAGRAM] ========================================")
+        logger.error(f"[INSTAGRAM] ✗ Carousel posting failed: {str(e)}")
+        logger.error(f"[INSTAGRAM] ========================================")
+        raise
