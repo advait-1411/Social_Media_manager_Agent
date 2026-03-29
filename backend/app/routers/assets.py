@@ -18,7 +18,7 @@ router = APIRouter()
 class GenerateRequest(BaseModel):
     prompt: str
     count: int = 4
-    model: str = "google/gemini-2.5-flash-image"
+    model: str = "google/gemini-3-pro-image-preview"
     brand_kit_id: Optional[int] = None
 
 

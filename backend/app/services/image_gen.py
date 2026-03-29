@@ -13,15 +13,21 @@ from .ai_assistant import get_image_overlay_plan
 
 logger = logging.getLogger(__name__)
 
-async def generate_images_service(prompt: str, user_prompt: str = "", count: int = 1, model: str = "google/google/gemini-2.5-flash-image", logo_path: Optional[str] = None):
+async def generate_images_service(prompt: str, user_prompt: str = "", count: int = 1, model: str = "google/gemini-3-pro-image-preview", logo_path: Optional[str] = None):
     """
-    Generates images using OpenRouter API with Gemini 2.5 Flash Image model,
+    Generates images using OpenRouter API with Gemini 3.1 Flash Image model,
     and automatically overlays the ONIDA logo and a generated subtle caption.
     """
     generated_paths = []
     output_dir = "generated_images"
     os.makedirs(output_dir, exist_ok=True)
     
+    # Improve prompt to be more direct for image generation (some multimodal models need this)
+    if not prompt.lower().startswith("generate an image"):
+        image_prompt = f"Generate a high-quality, professional marketing image for: {prompt}"
+    else:
+        image_prompt = prompt
+
     # Pre-fetch the overlay plan using the raw user prompt
     overlay_plan = {"logo_position": "BOTTOM-RIGHT-CORNER", "caption_text": "", "caption_position": "TOP-CENTER"}
     if user_prompt:
@@ -42,7 +48,7 @@ async def generate_images_service(prompt: str, user_prompt: str = "", count: int
             img = Image.new('RGB', (1024, 1024), color=color)
             d = ImageDraw.Draw(img)
             d.text((50, 50), f"Mock: {model}", fill=(255, 255, 255))
-            d.text((50, 70), prompt[:50], fill=(255, 255, 255))
+            d.text((50, 70), image_prompt[:50], fill=(255, 255, 255))
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             unique_id = uuid.uuid4().hex[:8]
             filename = f"mock_{timestamp}_{unique_id}_{i}.jpg"
@@ -64,48 +70,68 @@ async def generate_images_service(prompt: str, user_prompt: str = "", count: int
 
     for i in range(count):
         try:
-            # Prepare payload with image_config for Gemini model
-            payload = {
-                "model": model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "image_config": {
-                    "aspect_ratio": "1:1",  # Square for social media
-                    "image_size": "2K"
-                }
-                # Note: max_tokens is intentionally omitted — image models don't use it
-            }
-            
-            logger.info(f"Generating image {i+1}/{count} with prompt: {prompt[:50]}...")
-            response = requests.post(api_url, json=payload, headers=headers, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            
-            # Extract image from response structure
-            # Gemini 2.5 Flash Image returns: data['choices'][0]['message']['images'][0]['image_url']['url']
             image_data_url = None
-            try:
-                if 'choices' in data and len(data['choices']) > 0:
-                    message = data['choices'][0].get('message', {})
-                    if 'images' in message and len(message['images']) > 0:
-                        image_data_url = message['images'][0]['image_url']['url']
-            except (KeyError, IndexError, TypeError) as e:
-                logger.error(f"Failed to extract image URL from response: {e}")
-                logger.error(f"Response structure: {data}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to extract image from API response: {str(e)}"
-                )
+            response_data = None
+            
+            # Try the primary model, then current valid fallbacks on OpenRouter
+            models_to_try = [
+                model, 
+                "google/gemini-3-pro-image-preview",
+                "google/gemini-3.1-flash-image-preview",
+                "openai/gpt-5-image-mini",
+                "google/gemini-2.5-flash-image"
+            ]
+            
+            # De-duplicate while preserving order
+            models_to_try = list(dict.fromkeys(models_to_try))
+            
+            for current_model in models_to_try:
+                # Prepare payload with image_config for specialized image models
+                payload = {
+                    "model": current_model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": image_prompt
+                        }
+                    ],
+                    "image_config": {
+                        "aspect_ratio": "1:1",  # Square for social media
+                        "image_size": "2K"
+                    }
+                }
+                
+                logger.info(f"Generating image {i+1}/{count} with prompt: {image_prompt[:50]}... using {current_model}")
+                response = requests.post(api_url, json=payload, headers=headers, timeout=120)
+                response.raise_for_status()
+                data = response.json()
+                response_data = data
+                
+                # Extract image from response structure
+                try:
+                    if 'choices' in data and len(data['choices']) > 0:
+                        message = data['choices'][0].get('message', {})
+                        if 'images' in message and len(message['images']) > 0:
+                            image_data_url = message['images'][0]['image_url']['url']
+                        elif 'content' in message and 'http' in message['content']:
+                            # Some models return markdown image links
+                            import re
+                            urls = re.findall(r'(https?://[^\s)"]+)', message['content'])
+                            if urls:
+                                image_data_url = urls[0]
+                except (KeyError, IndexError, TypeError) as e:
+                    logger.warning(f"Failed to extract image URL from response struct with {current_model}: {e}")
+                
+                if image_data_url:
+                    break
+                else:
+                    logger.warning(f"No image URL found in {current_model} response. Trying fallback if available.")
             
             if not image_data_url:
-                logger.error(f"No image URL found in response: {data}")
+                logger.error(f"All fallback models failed. Last response: {response_data}")
                 raise HTTPException(
                     status_code=500,
-                    detail="API response did not contain an image URL"
+                    detail="The AI model refused to generate an image (likely due to trademark/safety filters for this brand). Please try a different prompt or a generic brand name."
                 )
 
             # Download and decode image

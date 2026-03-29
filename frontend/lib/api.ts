@@ -207,6 +207,7 @@ export const postsApi = {
     channels?: number[];
     platforms?: string[];
     brand_kit_id?: number | null;
+    platform_settings?: Record<string, any>;
   }): Promise<any> => {
     return apiFetch('/api/posts/batch-create', {
       method: 'POST',
@@ -461,4 +462,14 @@ export const draftsApi = {
       method: 'POST',
     });
   },
+};
+
+// Analytics API client
+export const analyticsApi = {
+  getPosts: async (): Promise<any[]> => {
+    return apiFetch('/api/posts/');
+  },
+  getAssets: async (): Promise<any[]> => {
+    return apiFetch('/api/assets/');
+  }
 };

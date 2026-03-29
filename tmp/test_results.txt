@@ -1,0 +1,20 @@
+INFO:app.services.image_gen:Generating image 1/1 with prompt: Generate a high-quality, professional marketing im... using google/gemini-3-pro-image-preview
+ERROR:app.services.image_gen:OpenRouter API error: {'error': {'message': 'Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys', 'code': 403}}
+INFO:app.services.image_gen:Generating image 1/1 with prompt: Generate a high-quality, professional marketing im... using google/gemini-3.1-flash-image-preview
+ERROR:app.services.image_gen:OpenRouter API error: {'error': {'message': 'Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys', 'code': 403}}
+INFO:app.services.image_gen:Generating image 1/1 with prompt: Generate a high-quality, professional marketing im... using openai/gpt-5-image-mini
+ERROR:app.services.image_gen:OpenRouter API error: {'error': {'message': 'Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys', 'code': 403}}
+INFO:app.services.image_gen:Generating image 1/1 with prompt: Generate a high-quality, professional marketing im... using google/gemini-2.5-flash-image
+ERROR:app.services.image_gen:OpenRouter API error: {'error': {'message': 'Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys', 'code': 403}}
+
+--- Testing model: google/gemini-3-pro-image-preview ---
+ERROR with google/gemini-3-pro-image-preview: 403: Image generation API error: Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys
+
+--- Testing model: google/gemini-3.1-flash-image-preview ---
+ERROR with google/gemini-3.1-flash-image-preview: 403: Image generation API error: Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys
+
+--- Testing model: openai/gpt-5-image-mini ---
+ERROR with openai/gpt-5-image-mini: 403: Image generation API error: Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys
+
+--- Testing model: google/gemini-2.5-flash-image ---
+ERROR with google/gemini-2.5-flash-image: 403: Image generation API error: Key limit exceeded (total limit). Manage it using https://openrouter.ai/settings/keys

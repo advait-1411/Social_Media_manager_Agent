@@ -13,56 +13,42 @@ This document tracks which features are **fully implemented**, **partially imple
 
 ## 📁 Assets Page (`/assets`)
 
-| Feature             | Status             | Notes                                                                                                                                     |
-| ------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| AI Image Generation | ✅ **IMPLEMENTED** | Uses OpenRouter API (Gemini 2.5 Flash). Includes **AI Overlay Engine** for ONIDA branding (logo + caption). |
-| Asset Upload Button | ✅ **IMPLEMENTED** | Allows selecting local files from device. Uploads to backend and adds to asset closet. Supports images and videos.                        |
-| Asset Grid Display  | ✅ **IMPLEMENTED** | Displays all assets from database with images.                                                                                            |
-| Search Assets       | ✅ **IMPLEMENTED** | Search functionality integrated in frontend using prompt matching logic.                                                                  |
-| Filter Assets       | ✅ **IMPLEMENTED** | Filter dropdown allows switching between "All Assets", "Generated", and "Uploaded".                                                       |
-| Asset Closet Modal  | ✅ **IMPLEMENTED** | Modal opens and allows selecting assets for posts with search/filter support.                                                             |
-| Asset Management    | ✅ **IMPLEMENTED** | Supports viewing, downloading, and deleting individual assets through a beautiful preview modal.                                          |
-| Asset Remix (Style with AI) | ✅ **IMPLEMENTED** | `POST /api/assets/{id}/remix` generates an AI background and Pillow-composites the original product on top with alpha masking. Remix assets inherit the parent's Brand Kit. |
-| Brand Overlay Engine| ✅ **IMPLEMENTED** | AI-driven placement of Brand Kit logos (light/dark) and generation of minimalist ad captions based on image content. |
-| Brand Kit Selection | ✅ **IMPLEMENTED** | Dropdown selector on Assets page to choose active brand for generation. Assets display brand badges. |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| AI Image Generation | ✅ **IMPLEMENTED** | OpenRouter with default model `google/gemini-3-pro-image-preview` and **automatic model fallbacks** on failure. Prompts from `build_remix_prompt()` using the resolved **Brand Kit** `system_prompt` (default kit when no `brand_kit_id`). |
+| Brand logo overlay | ✅ **IMPLEMENTED** | Overlays **Brand Kit `logo_light_path`** when the file exists; caption placement from AI overlay plan. |
+| Asset Upload | ✅ **IMPLEMENTED** | Uploads to `generated_images/`; `meta_data.source` = `upload`; links default kit when present. |
+| Asset Grid / Search / Filter | ✅ **IMPLEMENTED** | Filter uses `meta_data.source` (`generated` vs `upload`). |
+| Asset Closet Modal | ✅ **IMPLEMENTED** | Selection, search, brand kit tab flow. |
+| Asset Management | ✅ **IMPLEMENTED** | Preview, download, delete. |
+| Asset Remix (Style with AI) | ✅ **IMPLEMENTED** | `POST /api/assets/{id}/remix` composites product onto AI background; inherits kit; `meta_data.source` = `remix`. |
+| Brand Kit Selection | ✅ **IMPLEMENTED** | Dropdown + badges; generation resolves kit for prompts and logo path. |
 
 ---
 
 ## ✏️ Create Page (`/create`)
 
-| Feature                           | Status             | Notes                                                                                                                                                                                      |
-| --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Multi-Platform Selection          | ✅ **IMPLEMENTED** | Can select Instagram, LinkedIn, Twitter. State management works.                                                                                                                           |
-| Caption Text Input                | ✅ **IMPLEMENTED** | Basic text input works.                                                                                                                                                                    |
-| AI Caption Generation             | ✅ **IMPLEMENTED** | Integrated AI button triggers Gemini API to generate professional captions and hashtags based on user context.                                                                             |
-| Image Editing                     | ✅ **IMPLEMENTED** | Full-featured image editor modal allows cropping, filtering, and adjustments before finalizing a post.                                                                                     |
-| Media Selection from Asset Closet | ✅ **IMPLEMENTED** | Can select existing assets from the modal. Includes a **Brand Kits** tab for kit-based filtering.                                                                                                                  |
-| Media Upload (Local File)         | ✅ **IMPLEMENTED** | "Upload" button opens file picker to select local images/videos. Uploads directly and adds to post.                                                                                        |
-| Live Preview (Instagram)          | ✅ **IMPLEMENTED** | Shows Instagram-style preview with caption and media.                                                                                                                                      |
-| Live Preview (LinkedIn)           | ✅ **IMPLEMENTED** | Shows LinkedIn-style preview.                                                                                                                                                              |
-| Live Preview (Twitter/X)          | ✅ **IMPLEMENTED** | Shows Twitter-style preview.                                                                                                                                                               |
-| Platform Preview Toggle           | ✅ **IMPLEMENTED** | Can switch between platform previews.                                                                                                                                                      |
-| Save as Draft                     | ✅ **IMPLEMENTED** | Creates post with "draft" status.                                                                                                                                                          |
-| Post Now                          | ✅ **IMPLEMENTED** | Creates post and immediately publishes to Instagram via Composio (with Graph API fallback) with automatic image hosting. Handles single images, carousels, and reels. |
-| Schedule Post                     | ✅ **IMPLEMENTED** | Schedule button opens a date-time picker modal. Successfully saves scheduled time to backend and updates status to "scheduled".                                                            |
-| Post Status Updates               | ✅ **IMPLEMENTED** | Real-time status updates via polling and socket notifications.                                                                                                                             |
-| Bulk AI Creation Flow            | ✅ **IMPLEMENTED** | Generate multiple variations (image + caption) from one prompt. Supports committing them as a batch (1 primary + drafts). |
-| Error Handling                    | ✅ **IMPLEMENTED** | Comprehensive error messages for token expiration and API failures.                                                                                                                        |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Multi-Platform Selection | ✅ **IMPLEMENTED** | Instagram, LinkedIn, Twitter state. |
+| Caption & AI Caption | ✅ **IMPLEMENTED** | AI caption via AI router. |
+| Image Editor | ✅ **IMPLEMENTED** | Crop/adjust in modal. |
+| Asset Closet & Carousels | ✅ **IMPLEMENTED** | Multi-select for carousels; Brand Kits tab. |
+| Post Type (Post / Carousel / Reel) | ✅ **IMPLEMENTED** | Including video → Reel behavior where implemented. |
+| Live Previews | ✅ **IMPLEMENTED** | Instagram / LinkedIn / Twitter with carousel navigation. |
+| Draft / Schedule / Post Now | ✅ **IMPLEMENTED** | `POST /api/posts/`, schedule, `create-and-publish` with Composio-first publishing where configured. |
+| Bulk AI Creation | ✅ **IMPLEMENTED** | `generate-bulk-variations` + `batch-create`; **`BulkJobProvider`** keeps long requests alive across navigation. |
+| Real-time status | ✅ **IMPLEMENTED** | Polling + sockets as wired in the app. |
 
 ---
 
 ## 📅 Publish Page (`/publish`)
 
-| Feature                     | Status             | Notes                                                                           |
-| --------------------------- | ------------------ | ------------------------------------------------------------------------------- |
-| Calendar View               | ✅ **IMPLEMENTED** | Fetches and displays real scheduled/published posts from backend in a weekly grid. |
-| List/Queue View             | ✅ **IMPLEMENTED** | Displays real posts in a chronological list with current status labels.          |
-| View Toggle (Calendar/List) | ✅ **IMPLEMENTED** | Can switch between calendar and list views.                                     |
-| Schedule Post from Calendar | ✅ **IMPLEMENTED** | "+ Schedule" button navigates to Create page to start a new post.               |
-| View Scheduled Posts        | ✅ **IMPLEMENTED** | Fetches posts with `status="scheduled"` or `status="published"` from backend.    |
-| Status Polling              | ✅ **IMPLEMENTED** | Automatically polls backend every 10 seconds to update post statuses.            |
-| Status Notifications        | ✅ **IMPLEMENTED** | Shows toast notifications when a post moves from 'scheduled' -> 'publishing' -> 'published'. |
-| Instagram Carousel Posts    | ✅ **IMPLEMENTED** | Posts with multiple `media_assets` are automatically published as Instagram carousels via **Composio MCP** (with Meta Graph API fallback). |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Calendar & List | ✅ **IMPLEMENTED** | Real posts from API. |
+| Status polling / toasts | ✅ **IMPLEMENTED** | As implemented in `publish/page.tsx`. |
+| Instagram carousels | ✅ **IMPLEMENTED** | Multi `media_assets` → Composio / fallback publishing from post flow. |
 
 ---
 
@@ -70,65 +56,51 @@ This document tracks which features are **fully implemented**, **partially imple
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Sync Comments | ✅ **IMPLEMENTED** | `GET /api/posts/{id}/comments/sync` fetches real comments from Instagram via **Composio MCP** (`INSTAGRAM_GET_IG_MEDIA_COMMENTS`) with automatic fallback to the Instagram Graph API. Credentials are resolved from `backend/.env` first, then from the `Channel` table. |
-| AI Sentiment Analysis | ✅ **IMPLEMENTED** | Uses Azure OpenAI to classify comments as positive, neutral, or negative. |
-| AI Category Classification | ✅ **IMPLEMENTED** | Classifies comments as question, complaint, praise, or general. |
-| AI Reply Suggestion | ✅ **IMPLEMENTED** | Generates context-aware, tone-specific (friendly, professional, etc.) reply suggestions. |
-| Post Reply | ✅ **IMPLEMENTED** | Posts replies to Instagram comments via **Composio MCP** (`INSTAGRAM_REPLY_TO_COMMENT`) with a robust Graph API fallback. Database `Comment.replied` is only marked true when a real Instagram reply ID is returned. |
-| First Comment | ✅ **IMPLEMENTED** | Post a "first comment" on your own posts for engagement. |
-| Comment Settings | ✅ **IMPLEMENTED** | Toggle comments and like visibility (where supported by API). |
+| Sync / sentiment / replies | ✅ **IMPLEMENTED** | Composio MCP with Graph API fallback patterns in services. |
+| First comment / settings | ✅ **IMPLEMENTED** | Where exposed in UI and API. |
 
 ---
 
-## 📝 Drafts Library (`/drafts`)
+## 📝 Drafts Library
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Draft Management | ✅ **IMPLEMENTED** | CRUD operations for file-based post drafts (JSON). |
-| Multi-Platform Drafts | ✅ **IMPLEMENTED** | Save drafts for Instagram, LinkedIn, and Twitter simultaneously. |
-| Promote to Post | ✅ **IMPLEMENTED** | `POST /api/drafts/{id}/commit` converts a draft template into a real `Post` record. |
+| Draft CRUD & commit | ✅ **IMPLEMENTED** | File-based JSON under `backend/drafts/`; `commit` creates DB posts. |
 
 ---
 
 ## 📊 Analytics Page (`/analytics`)
 
-| Feature                    | Status             | Notes                                                                        |
-| -------------------------- | ------------------ | ---------------------------------------------------------------------------- |
-| Stats Overview Cards       | 📝 **MOCK DATA**   | All stats (Reach, Engagement, Followers, Posts) are hardcoded.               |
-| Date Range Selector        | 📝 **MOCK DATA**   | UI exists but doesn't filter any data (all data is mock).                    |
-| Engagement Chart           | 📝 **MOCK DATA**   | Visual chart exists but shows hardcoded data.                                |
-| Top Performing Posts Table | 📝 **MOCK DATA**   | Table displays hardcoded posts.                                              |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Stats & charts | ✅ **IMPLEMENTED** | Fetches posts + assets; filters by date; **asset source** uses `meta_data.source` (e.g. `generated`, `upload`, `remix`). |
+| Date range | ✅ **IMPLEMENTED** | 7d / 30d / All. |
 
 ---
 
 ## ✅ Approvals Page (`/approvals`)
 
-| Feature               | Status             | Notes                                                        |
-| --------------------- | ------------------ | ------------------------------------------------------------ |
-| Approvals List        | 📝 **MOCK DATA**   | Displays hardcoded approval items.                           |
-| Approval Workflow     | 🟡 **PARTIAL**     | Backend router exists but full persistence and UI state management are pending. |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Approvals UI | 📝 **MOCK DATA** | `MOCK_APPROVALS` in `frontend/app/approvals/page.tsx`. |
+| Approval API | 🟡 **PARTIAL** | Backend `GET /api/approvals/*` and related routes exist; UI not wired to live data. |
 
 ---
 
 ## ⚙️ Settings Page (`/settings`)
 
-| Feature                        | Status             | Notes                                                                                                                                  |
-| ------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Connected Channels List        | ✅ **IMPLEMENTED** | Fetches and displays connected channels from backend.                                                                                  |
-| Channel Connection (Instagram) | 🟡 **PARTIAL**     | Mostly managed via .env file; full OAuth flow from frontend UI is pending.                                                             |
-| Brand Kit Management | ✅ **IMPLEMENTED** | Full CRUD for Brand Kits: names, descriptions, system prompts, and light/dark logo uploads with AI injection suggestions. |
-| Available Platforms Display    | ✅ **IMPLEMENTED** | Shows Instagram (available), LinkedIn/Twitter (coming soon).                                                                           |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Channels | 🟡 **PARTIAL** | List from API; deep OAuth often via `.env`. |
+| Brand Kits | ✅ **IMPLEMENTED** | CRUD, prompts, light/dark logo uploads via `/api/brand-kits`. New kits are created with `is_default=False`; `_resolve_kit` uses a row with `is_default=True` when present (set in DB if you need a default). |
 
 ---
 
 ## 🎨 Layout & Navigation
 
-| Feature                  | Status             | Notes                                                           |
-| ------------------------ | ------------------ | --------------------------------------------------------------- |
-| Sidebar Navigation       | ✅ **IMPLEMENTED** | All navigation items work correctly.                            |
-| Mobile Menu              | ✅ **IMPLEMENTED** | Mobile drawer menu works correctly.                             |
-| Navigation Links         | ✅ **IMPLEMENTED** | Global routing and navigation hierarchy is stable.              |
-| Notification Center      | ✅ **IMPLEMENTED** | Real-time navbar notification bell with unread indicators and popover history. |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Sidebar / mobile / notifications | ✅ **IMPLEMENTED** | `LayoutShell`, `SocketProvider`, `BulkJobProvider` in root layout. |
 
 ---
 
@@ -136,82 +108,46 @@ This document tracks which features are **fully implemented**, **partially imple
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Campaign Generation | ✅ **IMPLEMENTED** | `POST /api/campaigns/generate` calls OpenRouter (gpt-4o-mini) with a structured prompt and returns 2–5 campaign blueprints each with 3–10 post blueprints in JSON. |
-| Campaign Canvas | ✅ **IMPLEMENTED** | Kanban-style column layout displaying each campaign with editable post cards; inline caption editing. |
-| Asset Selector | ✅ **IMPLEMENTED** | Multi-select grid picker for existing Asset Closet items; selected assets are passed as context to AI. |
-| Commit to Draft Posts | ✅ **IMPLEMENTED** | `POST /api/campaigns/commit` creates real `Post` rows (status=draft) from selected post blueprints; campaign metadata stored in `platform_settings`. |
-| Guardrails | ✅ **IMPLEMENTED** | AI system prompt explicitly prohibits celebrities, competitor brands, copyrighted characters, and NSFW content. |
-| Brand Guidelines | 🟡 **PARTIAL** | Tone and legal footer supported; dedicated BrandKit table is a future enhancement. |
-| Schedule Hints | 🟡 **PARTIAL** | Schedule cadence shown as informational text; automatic scheduling from canvas is a future enhancement. |
-| Image Auto-Generation | ❌ **NOT IMPLEMENTED** | Posts include `image_prompt` for manual generation; auto-trigger of image generation in commit flow is a future TODO. |
+| Generate / Kanban / commit | ✅ **IMPLEMENTED** | File-backed campaigns; bulk commit to draft posts. |
+| Image auto-generation on commit | ❌ **NOT IMPLEMENTED** | Blueprints may carry `image_prompt` for manual follow-up. |
 
 ---
 
-## 🔧 Backend API Endpoints
+## 🔧 Backend API (selected)
 
-| Endpoint                       | Status             | Notes                                                                                                                                                                                 |
-| ------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/assets/`             | ✅ **IMPLEMENTED** | Returns all assets.                                                                                                                                                                   |
-| `POST /api/assets/generate`    | ✅ **IMPLEMENTED** | Generates images via OpenRouter.                                                                                                                                                      |
-| `POST /api/assets/upload`      | ✅ **IMPLEMENTED** | Uploads image/video files.                                                                                                                                                            |
-| `GET /api/posts/calendar`      | ✅ **IMPLEMENTED** | Returns posts within a date range for the calendar view.                                                                                                                              |
-| `POST /api/posts/{id}/publish` | ✅ **IMPLEMENTED** | Manual publish endpoint – now builds a `PublishJob` and tries the agent first, falls back to internal IG logic.                                                                       |
-| `POST /api/posts/{id}/schedule`| ✅ **IMPLEMENTED** | Saves scheduled time and status.                                                                                                                       |
-| `POST /api/campaigns/generate` | ✅ **IMPLEMENTED** | AI generation of multi-post campaign blueprints.                                                                                                       |
-| `POST /api/campaigns/{id}/commit`| ✅ **IMPLEMENTED** | Converts blueprints to real draft posts.                                                                                                              |
-| `GET /api/posts/{id}/comments/sync`| ✅ **IMPLEMENTED** | Syncs and analyzes Instagram comments with AI.                                                                                                       |
-| `POST /api/comments/{id}/reply`| ✅ **IMPLEMENTED** | Posts AI-suggested or manual replies to Instagram.                                                                                                     |
-| `Scheduled Post Execution`     | ✅ **IMPLEMENTED** | Background asyncio loop in `scheduler.py` periodically checks for due posts and publishes them automatically (agent + fallback).                                                      |
-| `Agent PublishJob Layer`       | ✅ **IMPLEMENTED** | `publish_post_now` uses **Composio** (`post_image_via_composio`, `post_carousel_via_composio`) as the **primary** Instagram posting path for single images and carousels. Falls back to `instagram_publishing.py` on Composio error. Both manual and scheduled publishes use the same Composio-first flow. |
-| `POST /api/posts/create-and-publish` | ✅ **IMPLEMENTED** | Creates a post (single, carousel, or reel) and immediately triggers publishing via Composio/fallback. Returns post ID and publishing status/errors. |
-| `Brand Kit CRUD`               | ✅ **IMPLEMENTED** | **6 Endpoints**: List, Create, Get, Update, Delete, and Upload Logo. Linked to assets with automatic startup seeding for existing data. |
-| `POST /api/posts/generate-bulk-variations` | ✅ **IMPLEMENTED** | Generates N image/caption variations in one call with structural diversity hints. |
-| `POST /api/posts/batch-create` | ✅ **IMPLEMENTED** | Commits multiple variations as posts (1 primary, rest drafts) in one transaction. |
-| `Agent Testing Stub`           | ✅ **IMPLEMENTED** | Local endpoint at `/agent/instagram/publish` for Phase 1 end-to-end testing. |
+| Area | Status | Notes |
+| --- | --- | --- |
+| `GET/POST /api/assets/*` | ✅ | Generate, upload, remix, list. |
+| `GET/POST /api/posts/*` | ✅ | Includes `create-and-publish`, schedule, bulk endpoints per `posts.py`. |
+| `GET/POST /api/brand-kits/*` | ✅ | Kits + logo uploads. |
+| `POST /agent/*` (Composio) | ✅ | Instagram tooling via Composio MCP service. |
+| Scheduler | ✅ | Due posts in `scheduler.py`. |
+| Startup DB | ✅ | `create_all` + optional `brand_kit_id` column migration in `main.py`. |
 
 ---
 
-## 📋 Summary Statistics
+## 📋 Summary
 
-- **Fully Implemented**: 56 features (+2 since last update)
-- **Partially Implemented**: 3 features
-- **Not Implemented**: 18 features
-- **Mock Data Only**: 5 features
+- **Fully implemented**: Core flows (assets, create, publish, campaigns, drafts, analytics data pipeline, brand kits, comments, scheduling).
+- **Partial**: Channel OAuth in UI; approvals (API vs mock UI).
+- **Mock**: Approvals page list.
+- **Not implemented**: Automatic image gen on campaign commit; full multi-user RBAC; live engagement pulls from networks (beyond what’s wired).
 
-**Total Features Tracked**: 77
+### Recent alignment (March 2026)
 
-### Recent Implementations (March 2026)
-
-- ✅ **Brand Kits**: Multi-brand system with custom prompts, logo assets, and filtering in Asset Closet / Assets page.
-- ✅ **AI Brand Overlay Engine**: Sophisticated PIL-based engine that overlays Brand Kit logos and AI-planned captions onto generated images.
-- ✅ **Asset Remix (Composite)**: "Style with AI" feature that uses alpha-masking to place products into AI-generated lifestyle backgrounds.
-- ✅ **Instagram Comment Management**: Full suite for syncing, analyzing (sentiment/category), and replying to comments with AI assistance.
-- ✅ **Draft Library**: File-based post template system for multi-platform content planning.
-- ✅ **Agentic Publishing (Phase 1)**: Integrated Composio MCP for Instagram and established a local testing stub for agentic flows.
-- ✅ **Bulk AI Creation Flow**: New endpoints for generating and batch-committing multiple post variations.
-- ✅ **Campaign Generator (Bulk Commit)**: Enhanced campaign generation with bulk commit to draft posts and brand guideline enforcement.
-- ✅ **Configurable Scheduler**: Background worker now supports `.env` based interval and toggle settings.
+- Image generation: **model fallbacks**, **`logo_path`** from Brand Kit for overlays, prompt assembly via **`build_remix_prompt`** and kit `system_prompt`.
+- **No startup seed** of a default brand kit in current `main.py`. Kits are created via **`POST /api/brand-kits`** with `is_default=False`; generation/upload paths that call `_resolve_kit(None, …)` only pick up a kit if **`is_default=True`** exists in the database.
+- **Analytics** asset metrics use **`meta_data.source`** consistently with the Assets page.
 
 ---
 
-## 2️⃣ INCOMPLETE IMPLEMENTATION
+## Gaps & roadmap (concise)
 
-Current features that exist but require further refinement or backend connection:
-
-- **LinkedIn/Twitter Publishing**: Connectors exist in the UI but the actual publishing logic is not yet integrated.
-- **Analytics Dashboard**: UI components are present but data is currently hardcoded mock data.
-- **Approval Workflow**: Basic backend router exists but full database persistence and state transitions are not fully implemented in the frontend.
-- **Channel Connection UI**: Most channel setup happens via `.env`; the interactive "Add Account" flow within the app is partially complete.
-
-## 3️⃣ NOT IMPLEMENTED
-
-Features that are currently placeholders or planned for future releases:
-
-- **Team Management**: Support for multiple users and role-based access control.
-- **Real-time Metrics**: Live engagement data fetching from social platform APIs.
-- **Advanced Export**: Exporting analytics reports or scheduled calendars.
+- **LinkedIn / X publishing**: UI selectors; publishing logic not fully integrated for non-Instagram platforms.
+- **Approvals**: Replace mock list with `GET /api/approvals/pending` (or equivalent) and wire actions.
+- **Team / RBAC**, **live engagement metrics** from platform APIs: not implemented.
 
 ---
 
-**Last Updated**: March 11, 2026  
-**Based on**: Interactive codebase analysis and implementation verification.
+**Last Updated:** March 29, 2026  
+**Based on:** Repository source (`backend/app`, `frontend/app`, `frontend/lib`).

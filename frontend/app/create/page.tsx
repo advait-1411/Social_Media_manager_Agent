@@ -5,7 +5,7 @@ import {
     Instagram, Linkedin, Twitter,
     Image as ImageIcon, Smile, Hash,
     Calendar, Send, ChevronDown, Check, MoreHorizontal, Loader2, X, Trash2, BookMarked, Megaphone, Palette, ArrowLeft, Image as ImageIcon2,
-    Sparkles, PenLine, Save
+    Sparkles, PenLine, Save, Film, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
@@ -55,6 +55,10 @@ export default function CreatePage() {
     const [backendChannels, setBackendChannels] = useState<Channel[]>([]);
     const [previewPlatform, setPreviewPlatform] = useState('instagram');
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+    const [postType, setPostType] = useState<'post' | 'carousel' | 'reel'>('post');
+    const [additionalMedia, setAdditionalMedia] = useState<Asset[]>([]);
+    const [closetPickerMode, setClosetPickerMode] = useState<'main' | 'carousel'>('main');
+    const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
 
     // Closet tab state
     const [closetTab, setClosetTab] = useState<'assets' | 'drafts' | 'campaigns' | 'brand_kits'>('assets');
@@ -83,7 +87,31 @@ export default function CreatePage() {
     const [selectedPrimaryIndex, setSelectedPrimaryIndex] = useState(0);
     const [isBatchSaving, setIsBatchSaving] = useState(false);
     const [aiBrandKits, setAiBrandKits] = useState<BrandKit[]>([]);
+    
+    // Derived preview state
+    const allPreviewMedia = media ? (postType === 'carousel' ? [media, ...additionalMedia] : [media]) : [];
     // ───────────────────────────────────────────────────────────────────────
+
+    useEffect(() => {
+        if (allPreviewMedia.length > 0) {
+            if (previewSlideIndex >= allPreviewMedia.length) {
+                setPreviewSlideIndex(Math.max(0, allPreviewMedia.length - 1));
+            }
+        } else {
+            setPreviewSlideIndex(0);
+        }
+    }, [allPreviewMedia.length, previewSlideIndex]);
+
+    useEffect(() => {
+        if (!media) {
+            setPostType('post');
+            setAdditionalMedia([]);
+            return;
+        }
+        const isVideo = media.file_path?.match(/\.(mp4|mov|webm)$/i);
+        if (isVideo) setPostType('reel');
+        else setPostType('post');
+    }, [media]);
 
     useEffect(() => {
         connectorsApi.getAll()
@@ -108,7 +136,8 @@ export default function CreatePage() {
     }, []);
 
     // Fetch drafts, campaigns & brand kits when closet opens
-    const handleOpenCloset = () => {
+    const handleOpenCloset = (mode: 'main' | 'carousel' = 'main') => {
+        setClosetPickerMode(mode);
         setShowAssetModal(true);
         setIsClosetLoading(true);
         Promise.all([
@@ -312,10 +341,10 @@ export default function CreatePage() {
 
             const payload = {
                 content: caption,
-                media_assets: media ? [media.id] : [],
+                media_assets: media ? [media.id, ...additionalMedia.map(a => a.id)] : [],
                 status: status === 'published' ? 'draft' : 'draft',
                 channels: channelIds,
-                platform_settings: {}
+                platform_settings: { post_type: postType }
             };
 
             const data = await postsApi.create(payload) as { id: number };
@@ -374,10 +403,10 @@ export default function CreatePage() {
 
             const payload = {
                 content: caption,
-                media_assets: media ? [media.id] : [],
+                media_assets: media ? [media.id, ...additionalMedia.map(a => a.id)] : [],
                 status: 'draft',
                 channels: channelIds,
-                platform_settings: {}
+                platform_settings: { post_type: postType }
             };
 
             // 1. Create Post
@@ -418,6 +447,7 @@ export default function CreatePage() {
                 channels: channelIds,
                 platforms: selectedChannels,
                 brand_kit_id: aiBrandKitId,
+                platform_settings: { post_type: postType }
             });
             toast.success('All variations saved as drafts!');
             clearJob();
@@ -608,7 +638,7 @@ export default function CreatePage() {
                                             Upload
                                         </label>
                                         <button
-                                            onClick={handleOpenCloset}
+                                            onClick={() => handleOpenCloset('main')}
                                             className="text-xs bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-md font-medium text-blue-700 hover:bg-blue-100 hover:scale-105 transition-transform"
                                         >
                                             Open Asset Closet
@@ -617,6 +647,78 @@ export default function CreatePage() {
                                 </motion.div>
                             )}
                         </motion.div>
+
+                        {/* Post Type Selector */}
+                        {media && (
+                            <div className="pt-2">
+                                <label className="text-sm font-semibold text-gray-700 mb-2 block">Post Type</label>
+                                <div className="flex bg-gray-100 p-1 rounded-lg gap-1">
+                                    <button
+                                        onClick={() => setPostType('post')}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-medium rounded-md transition-all",
+                                            postType === 'post' ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+                                        )}
+                                    >
+                                        <ImageIcon2 className="w-4 h-4" /> Post
+                                    </button>
+                                    <button
+                                        onClick={() => setPostType('carousel')}
+                                        disabled={!!media.file_path?.match(/\.(mp4|mov|webm)$/i)}
+                                        title={media.file_path?.match(/\.(mp4|mov|webm)$/i) ? "Carousel not available for video" : undefined}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-medium rounded-md transition-all",
+                                            postType === 'carousel' ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700",
+                                            !!media.file_path?.match(/\.(mp4|mov|webm)$/i) && "opacity-50 cursor-not-allowed"
+                                        )}
+                                    >
+                                        <MoreHorizontal className="w-4 h-4" /> Carousel
+                                    </button>
+                                    <button
+                                        onClick={() => setPostType('reel')}
+                                        disabled={!media.file_path?.match(/\.(mp4|mov|webm)$/i)}
+                                        title={!media.file_path?.match(/\.(mp4|mov|webm)$/i) ? "Reel requires a video file" : undefined}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-medium rounded-md transition-all",
+                                            postType === 'reel' ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700",
+                                            !media.file_path?.match(/\.(mp4|mov|webm)$/i) && "opacity-50 cursor-not-allowed"
+                                        )}
+                                    >
+                                        <Film className="w-4 h-4" /> Reel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Carousel tray */}
+                        {media && postType === 'carousel' && (
+                            <div className="pt-2">
+                                <label className="text-sm font-semibold text-gray-700 mb-2 block">Carousel Items</label>
+                                <div className="flex gap-3 overflow-x-auto pb-2 items-center">
+                                    {/* Main media indicator */}
+                                    <div className="relative w-24 h-24 shrink-0 rounded-lg overflow-hidden border-2 border-indigo-500 shadow-sm">
+                                        <img src={`http://localhost:8000/${media.file_path.replace(/^\.?\//, '')}`} className="w-full h-full object-cover" />
+                                        <div className="absolute bottom-0 left-0 right-0 bg-indigo-500 text-white text-[10px] text-center font-bold py-0.5">Slide 1</div>
+                                    </div>
+
+                                    {/* Additional media */}
+                                    {additionalMedia.map((asset, idx) => (
+                                        <div key={asset.id} className="relative w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-gray-200 group shadow-sm">
+                                            <img src={`http://localhost:8000/${asset.file_path.replace(/^\.?\//, '')}`} className="w-full h-full object-cover" />
+                                            <button onClick={() => setAdditionalMedia(prev => prev.filter(a => a.id !== asset.id))} className="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center font-bold py-0.5">Slide {idx + 2}</div>
+                                        </div>
+                                    ))}
+
+                                    {/* Add button */}
+                                    <button onClick={() => handleOpenCloset('carousel')} className="w-24 h-24 shrink-0 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-indigo-500 hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
+                                        <span className="text-2xl font-light mb-1">+</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 )}
@@ -862,12 +964,41 @@ export default function CreatePage() {
                                     <MoreHorizontal className="w-4 h-4 text-gray-400" />
                                 </div>
 
-                                <div className="aspect-square bg-gray-100 flex items-center justify-center text-gray-300 overflow-hidden">
-                                    {media ? (
-                                        <img
-                                            src={`http://localhost:8000/${media.file_path.replace(/^\.?\//, '')}`}
-                                            className="w-full h-full object-cover"
-                                        />
+                                <div className="aspect-square bg-gray-100 flex items-center justify-center text-gray-300 overflow-hidden relative group">
+                                    {allPreviewMedia.length > 0 ? (
+                                        <>
+                                            <img
+                                                src={`http://localhost:8000/${allPreviewMedia[previewSlideIndex].file_path.replace(/^\.?\//, '')}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            {/* Navigation Arrows */}
+                                            {allPreviewMedia.length > 1 && (
+                                                <>
+                                                    {previewSlideIndex > 0 && (
+                                                        <button 
+                                                            onClick={() => setPreviewSlideIndex(i => i - 1)}
+                                                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10"
+                                                        >
+                                                            <ChevronLeft className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                    {previewSlideIndex < allPreviewMedia.length - 1 && (
+                                                        <button 
+                                                            onClick={() => setPreviewSlideIndex(i => i + 1)}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10"
+                                                        >
+                                                            <ChevronRight className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                    {/* Dots Indicator */}
+                                                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-10 bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
+                                                        {allPreviewMedia.map((_, idx) => (
+                                                            <div key={idx} className={cn("w-1.5 h-1.5 rounded-full transition-colors", idx === previewSlideIndex ? "bg-blue-500" : "bg-white/60")} />
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </>
                                     ) : (
                                         <ImageIcon className="w-12 h-12 opacity-20" />
                                     )}
@@ -920,12 +1051,29 @@ export default function CreatePage() {
                                     <div className="text-sm text-gray-900 mb-3 whitespace-pre-wrap">
                                         {caption || <span className="text-gray-400 italic">Your caption will appear here...</span>}
                                     </div>
-                                    {media && (
-                                        <div className="bg-gray-100 aspect-video rounded-none overflow-hidden border border-gray-100 mb-2">
+                                    {allPreviewMedia.length > 0 && (
+                                        <div className="bg-gray-100 aspect-video rounded-none overflow-hidden border border-gray-100 mb-2 relative group">
                                             <img
-                                                src={`http://localhost:8000/${media.file_path.replace(/^\.?\//, '')}`}
+                                                src={`http://localhost:8000/${allPreviewMedia[previewSlideIndex].file_path.replace(/^\.?\//, '')}`}
                                                 className="w-full h-full object-cover"
                                             />
+                                            {allPreviewMedia.length > 1 && (
+                                                <>
+                                                    {previewSlideIndex > 0 && (
+                                                        <button onClick={() => setPreviewSlideIndex(i => i - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                            <ChevronLeft className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {previewSlideIndex < allPreviewMedia.length - 1 && (
+                                                        <button onClick={() => setPreviewSlideIndex(i => i + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                            <ChevronRight className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm z-10 font-medium">
+                                                        {previewSlideIndex + 1} / {allPreviewMedia.length}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between text-gray-500 pt-2 border-t border-gray-100 mt-2">
@@ -952,12 +1100,26 @@ export default function CreatePage() {
                                         <div className="text-[15px] text-gray-900 mb-3 whitespace-pre-wrap">
                                             {caption || <span className="text-gray-400 italic">Your caption will appear here...</span>}
                                         </div>
-                                        {media && (
-                                            <div className="rounded-2xl border border-gray-200 overflow-hidden aspect-video mb-3">
+                                        {allPreviewMedia.length > 0 && (
+                                            <div className="rounded-2xl border border-gray-200 overflow-hidden aspect-video mb-3 relative group">
                                                 <img
-                                                    src={`http://localhost:8000/${media.file_path.replace(/^\.?\//, '')}`}
+                                                    src={`http://localhost:8000/${allPreviewMedia[previewSlideIndex].file_path.replace(/^\.?\//, '')}`}
                                                     className="w-full h-full object-cover"
                                                 />
+                                                {allPreviewMedia.length > 1 && (
+                                                    <>
+                                                        {previewSlideIndex > 0 && (
+                                                            <button onClick={() => setPreviewSlideIndex(i => i - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                                <ChevronLeft className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        {previewSlideIndex < allPreviewMedia.length - 1 && (
+                                                            <button onClick={() => setPreviewSlideIndex(i => i + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                                <ChevronRight className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                         <div className="flex justify-between text-gray-500 max-w-md">
@@ -1040,7 +1202,17 @@ export default function CreatePage() {
                                                 {assets.map(asset => (
                                                     <div
                                                         key={asset.id}
-                                                        onClick={() => { setMedia(asset); setShowAssetModal(false); }}
+                                                        onClick={() => {
+                                                            if (closetPickerMode === 'carousel') {
+                                                                if (!additionalMedia.find(a => a.id === asset.id) && media?.id !== asset.id) {
+                                                                    setAdditionalMedia(prev => [...prev, asset]);
+                                                                }
+                                                            } else {
+                                                                setMedia(asset);
+                                                                setAdditionalMedia([]);
+                                                            }
+                                                            setShowAssetModal(false);
+                                                        }}
                                                         className="aspect-square bg-gray-200 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 relative group"
                                                     >
                                                         <img
@@ -1278,7 +1450,17 @@ export default function CreatePage() {
                                                         {brandKitAssets.map(asset => (
                                                             <div
                                                                 key={asset.id}
-                                                                onClick={() => { setMedia(asset); setShowAssetModal(false); }}
+                                                                onClick={() => {
+                                                                    if (closetPickerMode === 'carousel') {
+                                                                        if (!additionalMedia.find(a => a.id === asset.id) && media?.id !== asset.id) {
+                                                                            setAdditionalMedia(prev => [...prev, asset]);
+                                                                        }
+                                                                    } else {
+                                                                        setMedia(asset);
+                                                                        setAdditionalMedia([]);
+                                                                    }
+                                                                    setShowAssetModal(false);
+                                                                }}
                                                                 className="relative aspect-square bg-gray-200 rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 group"
                                                             >
                                                                 <img

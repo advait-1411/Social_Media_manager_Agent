@@ -366,7 +366,7 @@ async def generate_bulk_variations(request: BulkVariationRequest, db: Session = 
                 prompt=final_prompt,
                 user_prompt=request.prompt,
                 count=request.count,
-                model="google/gemini-2.5-flash-image",
+                model="google/gemini-3-pro-image-preview",
                 logo_path=logo_path
             )
         except Exception as e:

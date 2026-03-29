@@ -41,3 +41,6 @@ backend/generated_images/*
 .idea/
 .DS_Store
 Thumbs.db
+
+# nul shite
+generated_images/*.nul

@@ -615,7 +615,7 @@ export default function SettingsPage() {
                             <div className="p-6 space-y-4 overflow-y-auto flex-1">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Kit Name *</label>
+                                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Product Name *</label>
                                         <input
                                             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                             placeholder="e.g. Summer Campaign"
