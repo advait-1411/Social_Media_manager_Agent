@@ -1,16 +1,16 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Instagram, Linkedin, Twitter,
     Image as ImageIcon, Smile, Hash,
     Calendar, Send, ChevronDown, Check, MoreHorizontal, Loader2, X, Trash2, BookMarked, Megaphone, Palette, ArrowLeft, Image as ImageIcon2,
-    Sparkles, PenLine, Save, Film, ChevronLeft, ChevronRight
+    Sparkles, PenLine, Save, Film, ChevronLeft, ChevronRight, Package, Shield, AtSign, Bot, CornerDownLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { connectorsApi, assetsApi, postsApi, aiApi, draftsApi, campaignsApi, type DraftMeta, type DraftFile, type CampaignMeta, type CampaignFile } from '@/lib/api';
+import { connectorsApi, assetsApi, postsApi, aiApi, draftsApi, campaignsApi, aiModeApi, type DraftMeta, type DraftFile, type CampaignMeta, type CampaignFile, type AIModeResult } from '@/lib/api';
 import { ScheduleModal } from '@/components/schedule-modal';
 import { ImageEditorModal } from '@/components/image-editor-modal';
 import { useBulkJob } from '@/contexts/bulk-job-context';
@@ -78,19 +78,31 @@ export default function CreatePage() {
     const [showImageEditor, setShowImageEditor] = useState(false);
     const [editorImageSrc, setEditorImageSrc] = useState<string>('');
 
-    // ── AI Generate mode state ──────────────────────────────────────────────
+    // ── AI Mode state ──────────────────────────────────────────────────────
     const { jobState, triggerBulkGenerate, clearJob } = useBulkJob();
     const [createMode, setCreateMode] = useState<'manual' | 'ai'>('manual');
+    // Legacy AI Generate mode (bulk variations)
     const [aiPrompt, setAiPrompt] = useState('');
     const [aiCount, setAiCount] = useState(3);
     const [aiBrandKitId, setAiBrandKitId] = useState<number | null>(null);
     const [selectedPrimaryIndex, setSelectedPrimaryIndex] = useState(0);
     const [isBatchSaving, setIsBatchSaving] = useState(false);
     const [aiBrandKits, setAiBrandKits] = useState<BrandKit[]>([]);
-    
+    // NEW: AI Mode chat state
+    const [aiChatMessages, setAiChatMessages] = useState<Array<{
+        role: 'user' | 'assistant';
+        content: string;
+        result?: AIModeResult;
+        error?: string;
+    }>>([]);
+    const [aiChatInput, setAiChatInput] = useState('');
+    const [isAiGenerating, setIsAiGenerating] = useState(false);
+    const aiChatEndRef = useRef<HTMLDivElement>(null);
+    // ──────────────────────────────────────────────────────────────────────
+
     // Derived preview state
     const allPreviewMedia = media ? (postType === 'carousel' ? [media, ...additionalMedia] : [media]) : [];
-    // ───────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         if (allPreviewMedia.length > 0) {
@@ -458,6 +470,31 @@ export default function CreatePage() {
         }
     };
 
+    const handleAiChatSend = async () => {
+        const msg = aiChatInput.trim();
+        if (!msg || isAiGenerating) return;
+        setAiChatInput('');
+        setAiChatMessages(prev => [...prev, { role: 'user', content: msg }]);
+        setIsAiGenerating(true);
+        try {
+            const result = await aiModeApi.generate(msg);
+            setAiChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: result.caption || 'Image generated!', result }
+            ]);
+            // Auto-scroll
+            setTimeout(() => aiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        } catch (err: any) {
+            const errMsg = err.message || 'Generation failed';
+            setAiChatMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: errMsg, error: errMsg }
+            ]);
+        } finally {
+            setIsAiGenerating(false);
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -722,161 +759,186 @@ export default function CreatePage() {
                     </div>
                 </div>
                 )}
-
-                {/* AI Generate Mode body */}
                 {createMode === 'ai' && (
-                    <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Header info */}
+                        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <Bot className="w-4 h-4 text-purple-500" />
+                                <span className="text-sm font-semibold text-gray-700">AI Mode</span>
+                                <span className="text-xs text-gray-400">
+                                    Use <code className="bg-purple-50 text-purple-600 px-1 rounded font-mono">@tag</code> to reference product assets or logos from your Product Kit
+                                </span>
+                            </div>
+                        </div>
 
-                        {/* ── PROMPT INPUT (shown when idle or error) ── */}
-                        {(jobState.status === 'idle' || jobState.status === 'error') && (
-                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                                        <Sparkles className="w-4 h-4 text-purple-500" />
-                                        Describe your post
-                                    </label>
-                                    <textarea
-                                        rows={3}
-                                        className="w-full p-4 rounded-xl border border-gray-200 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-base placeholder:text-gray-400 transition-shadow shadow-sm"
-                                        placeholder="Describe the visual and mood of your post…"
-                                        value={aiPrompt}
-                                        onChange={(e) => setAiPrompt(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="flex gap-3 flex-wrap">
-                                    <div className="flex-1 min-w-[160px] space-y-1">
-                                        <label className="text-xs font-medium text-gray-500">Brand Kit</label>
-                                        <select
-                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-purple-400"
-                                            value={aiBrandKitId ?? ''}
-                                            onChange={(e) => setAiBrandKitId(e.target.value ? Number(e.target.value) : null)}
-                                        >
-                                            <option value="">No Brand Kit</option>
-                                            {aiBrandKits.map(k => (
-                                                <option key={k.id} value={k.id}>{k.name}</option>
-                                            ))}
-                                        </select>
+                        {/* Chat message thread */}
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                            {aiChatMessages.length === 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="text-center py-8 space-y-3"
+                                >
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center mx-auto">
+                                        <Sparkles className="w-6 h-6 text-purple-500" />
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-medium text-gray-500">Variations</label>
-                                        <select
-                                            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white outline-none focus:ring-2 focus:ring-purple-400"
-                                            value={aiCount}
-                                            onChange={(e) => setAiCount(Number(e.target.value))}
-                                        >
-                                            {[2, 3, 4].map(n => (
-                                                <option key={n} value={n}>{n}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {jobState.status === 'error' && (
-                                    <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                                        ⚠️ {jobState.error}
+                                    <p className="text-gray-900 font-semibold">AI Mode</p>
+                                    <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                                        Describe your post. Use <strong>@asset-name</strong> to reference product assets from your Product Kit — the AI will generate an image and optionally overlay your logo.
                                     </p>
-                                )}
+                                    <div className="flex flex-wrap gap-2 justify-center mt-4">
+                                        <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 rounded-full px-3 py-1 text-xs font-medium">
+                                            <Package className="w-3 h-3" />
+                                            @product-asset → image generation
+                                        </div>
+                                        <div className="flex items-center gap-1.5 bg-orange-50 text-orange-700 rounded-full px-3 py-1 text-xs font-medium">
+                                            <Shield className="w-3 h-3" />
+                                            @logo-trademark → overlay only
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
 
-                                <button
-                                    disabled={!aiPrompt.trim()}
-                                    onClick={() => {
-                                        if (!aiPrompt.trim()) return;
-                                        triggerBulkGenerate({ prompt: aiPrompt, brand_kit_id: aiBrandKitId, count: aiCount });
-                                    }}
-                                    className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold text-sm hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                            {aiChatMessages.map((msg, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.04 }}
+                                    className={cn(
+                                        'flex gap-3',
+                                        msg.role === 'user' ? 'justify-end' : 'justify-start'
+                                    )}
                                 >
-                                    <Sparkles className="w-4 h-4" />
-                                    Generate Variations
-                                </button>
-                            </motion.div>
-                        )}
-
-                        {/* ── GENERATING STATE ── */}
-                        {jobState.status === 'generating' && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                                <div className="text-center py-4 space-y-3">
-                                    <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto" />
-                                    <p className="text-sm font-medium text-gray-700">Generating {aiCount} variations…</p>
-                                    <p className="text-xs text-gray-400">This takes ~20–30s. Feel free to navigate away — your results will be here when you return.</p>
-                                </div>
-                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <motion.div
-                                        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
-                                        animate={{ x: ['-100%', '100%'] }}
-                                        transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* ── VARIATION CARDS ── */}
-                        {jobState.status === 'done' && jobState.variations.length > 0 && (
-                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Choose a variation</p>
-
-                                {jobState.variations.map((variation, i) => {
-                                    const isActive = media?.id === variation.asset.id;
-                                    const thumbUrl = `http://localhost:8000/${variation.asset.file_path.replace(/^\.?\//, '')}`;
-                                    return (
-                                        <motion.div
-                                            key={variation.asset.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.06 }}
-                                            className={cn(
-                                                'flex gap-4 p-4 rounded-xl border transition-all',
-                                                isActive
-                                                    ? 'border-purple-400 bg-purple-50 ring-1 ring-purple-300'
-                                                    : 'border-gray-200 bg-white hover:border-purple-200'
-                                            )}
-                                        >
-                                            <div className="w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                                                <img src={thumbUrl} alt={`Variation ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                                            </div>
-                                            <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
-                                                <p className="text-sm text-gray-700 line-clamp-2">
-                                                    {variation.caption.slice(0, 100)}{variation.caption.length > 100 ? '…' : ''}
-                                                </p>
-                                                <button
-                                                    onClick={() => {
-                                                        setCaption(variation.caption);
-                                                        setMedia(variation.asset as unknown as Asset);
-                                                        setSelectedPrimaryIndex(i);
-                                                        setCreateMode('manual');
-                                                    }}
-                                                    className={cn(
-                                                        'self-start text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors',
-                                                        isActive
-                                                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    {msg.role === 'assistant' && (
+                                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shrink-0 mt-0.5">
+                                            <Bot className="w-4 h-4 text-white" />
+                                        </div>
+                                    )}
+                                    <div className={cn(
+                                        'max-w-[85%] rounded-2xl px-4 py-3 text-sm',
+                                        msg.role === 'user'
+                                            ? 'bg-indigo-600 text-white rounded-tr-sm'
+                                            : msg.error
+                                                ? 'bg-red-50 text-red-700 border border-red-100 rounded-tl-sm'
+                                                : 'bg-gray-100 text-gray-800 rounded-tl-sm'
+                                    )}>
+                                        {/* Result card */}
+                                        {msg.result && (
+                                            <div className="space-y-3">
+                                                {/* Generated image */}
+                                                <div className="relative rounded-xl overflow-hidden border border-white/20 shadow-sm">
+                                                    <img
+                                                        src={`http://localhost:8000/${msg.result.file_path.replace(/^\.\//, '')}`}
+                                                        alt="Generated"
+                                                        className="w-full object-cover rounded-xl"
+                                                    />
+                                                    {msg.result.overlay_applied && (
+                                                        <div className="absolute top-2 right-2 flex items-center gap-1 bg-orange-500 text-white px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                                                            <Shield className="w-2.5 h-2.5" /> Logo applied
+                                                        </div>
                                                     )}
-                                                >
-                                                    {isActive ? '✓ Selected' : 'Use This Variation'}
-                                                </button>
+                                                </div>
+                                                {/* Kit info */}
+                                                {msg.result.product_kit_name && (
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                                                        <Package className="w-3 h-3" />
+                                                        <span>Product Kit: <strong>{msg.result.product_kit_name}</strong></span>
+                                                    </div>
+                                                )}
+                                                {/* Caption */}
+                                                {msg.result.caption && (
+                                                    <p className="text-xs text-gray-700 leading-relaxed">{msg.result.caption}</p>
+                                                )}
+                                                {/* Actions */}
+                                                <div className="flex gap-2 pt-1">
+                                                    <button
+                                                        onClick={() => {
+                                                            setMedia({
+                                                                id: msg.result!.asset_id,
+                                                                file_path: msg.result!.file_path,
+                                                                prompt: '',
+                                                                brand_kit_id: msg.result!.product_kit_id ?? undefined,
+                                                            });
+                                                            if (msg.result!.caption) setCaption(msg.result!.caption);
+                                                            setCreateMode('manual');
+                                                            toast.success('Image applied to composer!');
+                                                        }}
+                                                        className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white rounded-lg py-1.5 text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                                                    >
+                                                        <Check className="w-3.5 h-3.5" /> Use This
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (msg.result?.caption) setCaption(msg.result.caption);
+                                                        }}
+                                                        className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-300 transition-colors"
+                                                    >
+                                                        Caption only
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </motion.div>
-                                    );
-                                })}
+                                        )}
+                                        {/* Plain text content (for user messages or error-only assistant messages) */}
+                                        {!msg.result && <span>{msg.content}</span>}
+                                    </div>
+                                    {msg.role === 'user' && (
+                                        <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold text-gray-500">U</div>
+                                    )}
+                                </motion.div>
+                            ))}
 
-                                <button
-                                    onClick={handleBatchSave}
-                                    disabled={isBatchSaving}
-                                    className="w-full py-2.5 border-2 border-dashed border-gray-300 text-gray-600 rounded-xl font-medium text-sm hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            {/* Generating indicator */}
+                            {isAiGenerating && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex gap-3"
                                 >
-                                    <Save className="w-4 h-4" />
-                                    {isBatchSaving ? 'Saving…' : '💾 Save All as Draft Posts'}
-                                </button>
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shrink-0">
+                                        <Bot className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                                        <span className="text-sm text-gray-600">Generating image…</span>
+                                    </div>
+                                </motion.div>
+                            )}
+                            <div ref={aiChatEndRef} />
+                        </div>
 
+                        {/* Chat input */}
+                        <div className="border-t border-gray-100 p-4 shrink-0">
+                            <div className="flex gap-2 items-end bg-gray-50 rounded-2xl border border-gray-200 px-3 py-2 focus-within:ring-2 focus-within:ring-purple-400 focus-within:border-transparent transition-all">
+                                <AtSign className="w-4 h-4 text-gray-400 mb-2 shrink-0" />
+                                <textarea
+                                    rows={2}
+                                    className="flex-1 bg-transparent resize-none outline-none text-sm text-gray-800 placeholder:text-gray-400"
+                                    placeholder="Describe your post… Use @asset-name to tag product assets or logos"
+                                    value={aiChatInput}
+                                    onChange={e => setAiChatInput(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleAiChatSend();
+                                        }
+                                    }}
+                                    disabled={isAiGenerating}
+                                />
                                 <button
-                                    onClick={() => clearJob()}
-                                    className="w-full text-center text-xs text-gray-400 hover:text-gray-700 transition-colors py-1"
+                                    onClick={handleAiChatSend}
+                                    disabled={!aiChatInput.trim() || isAiGenerating}
+                                    className="mb-1 p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                                    title="Generate (Enter)"
                                 >
-                                    ← Generate new variations
+                                    <CornerDownLeft className="w-4 h-4" />
                                 </button>
-                            </motion.div>
-                        )}
-
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+                                Enter to send • Shift+Enter for newline • Product Guidelines inject into image gen only
+                            </p>
+                        </div>
                     </div>
                 )}
 

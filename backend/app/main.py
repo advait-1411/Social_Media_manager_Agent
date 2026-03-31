@@ -23,15 +23,15 @@ logging.basicConfig(
 )
 
 
-# Create tables
+# Create tables (additive — new tables like kit_assets are created automatically)
 Base.metadata.create_all(bind=engine)
 
 # Auto-migrate: Add brand_kit_id to assets if it doesn't exist
 try:
     with engine.connect() as conn:
-        # Check if the column exists
         from sqlalchemy import inspect
         inspector = inspect(engine)
+        # --- assets.brand_kit_id migration (existing) ---
         columns = [c['name'] for c in inspector.get_columns('assets')]
         if 'brand_kit_id' not in columns:
             logging.info("[MIGRATION] Adding 'brand_kit_id' column to 'assets' table...")
@@ -41,8 +41,9 @@ try:
 except Exception as e:
     logging.error(f"[MIGRATION] Migration failed: {e}")
 
-# Create logo storage directory on startup
+# Create storage directories on startup
 os.makedirs("brand_kit_logos", exist_ok=True)
+os.makedirs("kit_assets", exist_ok=True)
 
 app = FastAPI(title="VelvetQueue API", version="1.0.0")
 
@@ -80,6 +81,15 @@ app.include_router(drafts.router, prefix="/api/drafts", tags=["Drafts"])
 app.include_router(agent_instagram.router, prefix="/agent", tags=["agent-instagram"])
 app.include_router(composio_instagram.router, prefix="/agent", tags=["composio-instagram"])
 app.include_router(brand_kits.router, prefix="/api/brand-kits", tags=["Brand Kits"])
+# B2B terminology alias: /api/product-kits routes to the same router
+app.include_router(brand_kits.router, prefix="/api/product-kits", tags=["Product Kits"])
+
+# Mount kit assets directory
+os.makedirs("kit_assets", exist_ok=True)
+try:
+    app.mount("/kit_assets", StaticFiles(directory="kit_assets"), name="kit_assets")
+except Exception:
+    pass  # Directory might already be mounted
 
 
 @app.on_event("startup")

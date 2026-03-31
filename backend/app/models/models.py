@@ -4,24 +4,81 @@ from sqlalchemy.sql import func
 from ..database import Base
 
 # NOTE: Tables are created with create_all on startup. If upgrading an existing DB,
-# you must manually run:
-#   ALTER TABLE assets ADD COLUMN brand_kit_id INTEGER REFERENCES brand_kits(id);
-# OR wipe the DB file and restart to let create_all build fresh tables.
+# run migrate_db.py or the auto-migration in main.py before restarting.
+#
+# Terminology (UI vs DB):
+#   - "Brand Kit" in DB/code  →  "Product Kit" in UI
+#   - "system_prompt" in DB   →  "Product Guidelines" in UI
+# This backward-compat layer avoids a destructive migration while the UI
+# presents the new B2B terminology.
 
 class BrandKit(Base):
+    """
+    Represents a Product Kit (displayed as "Product Kit" in the UI).
+    The column `system_prompt` stores what the UI calls "Product Guidelines".
+    Backward-compat: existing rows and API contracts keep snake_case names;
+    the UI layer renames them on display.
+    """
     __tablename__ = "brand_kits"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, unique=True)
     description = Column(Text, nullable=True)
+    # UI calls this field "Product Guidelines"
     system_prompt = Column(Text, nullable=False)
-    logo_light_path = Column(String, nullable=True)  # light version logo file path
-    logo_dark_path = Column(String, nullable=True)   # dark version logo file path
-    is_default = Column(Boolean, default=False)      # marks the fallback kit
+    # Legacy logo paths — kept for backward-compat.
+    # New overlay flow uses KitAsset rows with asset_type='logo_trademark' instead.
+    logo_light_path = Column(String, nullable=True)
+    logo_dark_path = Column(String, nullable=True)
+    is_default = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     assets = relationship("Asset", back_populates="brand_kit")
+    # Typed kit assets (product images + logos), introduced in v1 B2B pivot
+    kit_assets = relationship("KitAsset", back_populates="product_kit", cascade="all, delete-orphan")
+
+    @property
+    def product_guidelines(self) -> str:
+        """Alias for system_prompt — use this in new code."""
+        return self.system_prompt
+
+
+class KitAsset(Base):
+    """
+    A typed media file attached to a Product Kit.
+
+    asset_type values:
+      - 'product_asset'   : used for image generation (usable_in_generation=True)
+      - 'logo_trademark'  : used for overlay/compositing only (usable_for_overlay=True)
+
+    LOGO_SAFETY_RULE:
+      logo_trademark assets MUST NEVER be sent to the image generation service.
+      They are used only in the overlay step AFTER generation and editing.
+
+    The `name` field is the user-entered canonical label used for @tag resolution
+    in AI Mode. A normalized slug is stored in `token` for mention-safe lookup.
+    """
+    __tablename__ = "kit_assets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_kit_id = Column(Integer, ForeignKey("brand_kits.id"), nullable=False)
+    # User-entered display name (e.g. "Nike Hypervenom Neon Pink")
+    name = Column(String, nullable=False)
+    # Mention-safe normalized token (e.g. "nike-hypervenom-neon-pink")
+    token = Column(String, nullable=False, index=True)
+    # 'product_asset' | 'logo_trademark'
+    asset_type = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    mime_type = Column(String, nullable=True)
+    # PRODUCT_GUIDELINES_RULE enforcement flags:
+    #   product_asset  → usable_in_generation=True,  usable_for_overlay=False
+    #   logo_trademark → usable_in_generation=False, usable_for_overlay=True
+    usable_in_generation = Column(Boolean, nullable=False, default=False)
+    usable_for_overlay = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    product_kit = relationship("BrandKit", back_populates="kit_assets")
 
 
 class Asset(Base):

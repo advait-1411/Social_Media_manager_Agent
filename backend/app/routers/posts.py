@@ -11,6 +11,9 @@ from ..socket_manager import socket_manager
 from pydantic import BaseModel, Field
 from ..services.image_gen import generate_images_service
 from ..services.ai_assistant import generate_caption
+from ..services.prompt_builder import build_remix_prompt
+from ..services.tag_parser import parse_and_resolve_tags, AmbiguousKitError, NoProductAssetsError
+from ..services.overlay_service import apply_overlays_from_kit_assets
 
 # Define logger
 logger = logging.getLogger(__name__)
@@ -481,3 +484,162 @@ async def batch_create_posts(request: BatchCreateRequest, db: Session = Depends(
         total_created=len(posts)
     )
 
+
+# ── AI Mode Endpoint ──────────────────────────────────────────────────────────
+
+class AIModeRequest(BaseModel):
+    """
+    Request body for AI Mode post generation.
+
+    `message` is the user's natural language instruction, optionally containing
+    @tag references to KitAsset names (e.g. @nike-hypervenom-neon-pink).
+
+    Product Kit is inferred from tagged assets.
+    If a specific kit is not inferrable, the request fails with a clear error.
+    """
+    message: str
+    model: str = "google/gemini-3-pro-image-preview"
+
+
+@router.post("/ai-generate")
+async def ai_mode_generate(request: AIModeRequest, db: Session = Depends(get_db)):
+    """
+    AI Mode: single-image generation from a chat-style instruction.
+
+    Flow:
+      1. Parse @tags from the user message.
+      2. Infer Product Kit from tagged assets.
+      3. Fetch Product Guidelines (system_prompt) from inferred kit.
+      4. Build image prompt from user message + Product Guidelines.
+         PRODUCT_GUIDELINES_RULE: Guidelines inject into IMAGE GENERATION ONLY.
+      5. Generate image — logo_path=None always (LOGO_SAFETY_RULE).
+      6. After generation: apply logo_trademark overlay (if any tagged).
+      7. Save Asset DB row, return result for preview/post pipeline.
+    """
+    if not request.message or not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    # Step 1: Parse @tags
+    try:
+        parsed = parse_and_resolve_tags(request.message, db)
+    except AmbiguousKitError:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "The tagged assets belong to multiple Product Kits. "
+                "Please clarify which Product Kit you want to use for this generation."
+            )
+        )
+    except NoProductAssetsError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No product assets were tagged. Please include at least one "
+                "product asset using @tag syntax before generating."
+            )
+        )
+
+    # Step 2: Infer Product Kit
+    inferred_kit = parsed.inferred_kit
+    inferred_kit_id = parsed.inferred_kit_id
+
+    # Step 3: Product Guidelines for image generation
+    # PRODUCT_GUIDELINES_RULE: Product Guidelines → image generation ONLY (not captions)
+    product_guidelines: Optional[str] = None
+    if inferred_kit:
+        product_guidelines = inferred_kit.system_prompt
+        logger.info(
+            f"[AI_MODE] Inferred kit id={inferred_kit_id} name='{inferred_kit.name}'. "
+            f"Product Guidelines length={len(product_guidelines or '')}"
+        )
+    else:
+        logger.info("[AI_MODE] No Product Kit inferred — generating without guidelines.")
+
+    # Step 4: Build image prompt (Product Guidelines injected here for images only)
+    user_message = request.message.strip()
+    final_image_prompt = build_remix_prompt(user_message, product_guidelines)
+
+    # Step 5: Generate image
+    # LOGO_SAFETY_RULE: We pass logo_path=None. Logos must NEVER enter generation.
+    # parsed.generation_assets = product_asset typed KitAssets (reference info only).
+    # parsed.overlay_assets = logo_trademark assets → applied AFTER generation (step 6).
+    try:
+        paths = await generate_images_service(
+            prompt=final_image_prompt,
+            user_prompt=user_message,
+            count=1,
+            model=request.model,
+            logo_path=None,  # LOGO_SAFETY_RULE: always None in AI Mode
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+    if not paths:
+        raise HTTPException(status_code=500, detail="Image generation produced no output.")
+
+    full_path = paths[0]
+
+    # Step 6: Apply logo/trademark overlay AFTER generation
+    # LOGO_SAFETY_RULE: This is the correct place for logos — after generation and editing.
+    overlay_applied = False
+    if parsed.overlay_assets:
+        try:
+            overlaid_path = apply_overlays_from_kit_assets(
+                base_image_path=full_path,
+                overlay_assets=parsed.overlay_assets,
+            )
+            full_path = overlaid_path
+            overlay_applied = True
+            logger.info(
+                f"[AI_MODE] Overlay applied using {len(parsed.overlay_assets)} logo asset(s). "
+                f"Final path: {full_path}"
+            )
+        except Exception as e:
+            logger.error(f"[AI_MODE] Overlay failed (generation still valid): {e}")
+
+    # Step 7: Caption generation
+    # PRODUCT_GUIDELINES_RULE: Caption generation does NOT receive Product Guidelines.
+    caption = ""
+    try:
+        caption = await generate_caption(
+            prompt=user_message,
+            platform="instagram",
+            tone="professional",
+        )
+    except Exception as e:
+        logger.warning(f"[AI_MODE] Caption generation failed: {e}")
+
+    # Step 8: Save Asset DB row — routes into existing preview/post pipeline
+    asset = models.Asset(
+        file_path=full_path,
+        asset_type="image",
+        prompt=user_message,
+        system_prompt=product_guidelines,
+        brand_kit_id=inferred_kit_id,
+        meta_data={
+            "source": "ai_mode",
+            "model": request.model,
+            "overlay_applied": overlay_applied,
+            "overlay_asset_ids": [a.id for a in parsed.overlay_assets],
+            "generation_asset_ids": [a.id for a in parsed.generation_assets],
+            "inferred_kit_id": inferred_kit_id,
+        }
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+
+    logger.info(
+        f"[AI_MODE] Generation complete. asset_id={asset.id} kit_id={inferred_kit_id} "
+        f"overlay={overlay_applied}"
+    )
+
+    return {
+        "asset_id": asset.id,
+        "file_path": asset.file_path,
+        "caption": caption,
+        "product_kit_id": inferred_kit_id,
+        "product_kit_name": inferred_kit.name if inferred_kit else None,
+        "overlay_applied": overlay_applied,
+        "message": "Image generated successfully.",
+    }

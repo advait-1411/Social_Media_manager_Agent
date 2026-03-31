@@ -473,3 +473,145 @@ export const analyticsApi = {
     return apiFetch('/api/assets/');
   }
 };
+
+// ---------------------------------------------------------------------------
+// Product Kits — typed KitAsset support
+// ---------------------------------------------------------------------------
+
+export interface KitAsset {
+  id: number;
+  product_kit_id: number;
+  name: string;
+  token: string;
+  asset_type: 'product_asset' | 'logo_trademark';
+  file_path: string;
+  mime_type?: string | null;
+  usable_in_generation: boolean;
+  usable_for_overlay: boolean;
+  created_at: string;
+}
+
+export interface ProductKit {
+  id: number;
+  name: string;
+  description?: string | null;
+  system_prompt: string;
+  product_guidelines: string;
+  logo_light_path?: string | null;
+  logo_dark_path?: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at?: string | null;
+  asset_count: number;
+  kit_assets: KitAsset[];
+}
+
+export const productKitsApi = {
+  list: async (): Promise<ProductKit[]> => {
+    return apiFetch('/api/brand-kits/');
+  },
+
+  create: async (payload: {
+    name: string;
+    description?: string;
+    product_guidelines: string;
+  }): Promise<ProductKit> => {
+    return apiFetch('/api/brand-kits/', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: payload.name,
+        description: payload.description,
+        system_prompt: payload.product_guidelines,
+        product_guidelines: payload.product_guidelines,
+      }),
+    });
+  },
+
+  update: async (kitId: number, payload: {
+    name?: string;
+    description?: string;
+    product_guidelines?: string;
+  }): Promise<ProductKit> => {
+    return apiFetch(`/api/brand-kits/${kitId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: payload.name,
+        description: payload.description,
+        product_guidelines: payload.product_guidelines,
+        system_prompt: payload.product_guidelines,
+      }),
+    });
+  },
+
+  delete: async (kitId: number): Promise<void> => {
+    return apiFetch(`/api/brand-kits/${kitId}`, { method: 'DELETE' });
+  },
+
+  uploadLogo: async (kitId: number, logoLight?: File, logoDark?: File): Promise<ProductKit> => {
+    const fd = new FormData();
+    if (logoLight) fd.append('logo_light', logoLight);
+    if (logoDark) fd.append('logo_dark', logoDark);
+    const res = await fetch(`${API_BASE}/api/brand-kits/${kitId}/logo`, {
+      method: 'POST',
+      body: fd,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as any).detail || 'Logo upload failed');
+    }
+    return res.json();
+  },
+
+  uploadKitAsset: async (
+    kitId: number,
+    file: File,
+    name: string,
+    assetType: 'product_asset' | 'logo_trademark'
+  ): Promise<KitAsset> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('name', name);
+    fd.append('asset_type', assetType);
+    const res = await fetch(`${API_BASE}/api/brand-kits/${kitId}/assets/upload`, {
+      method: 'POST',
+      body: fd,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as any).detail || 'Asset upload failed');
+    }
+    return res.json();
+  },
+
+  listKitAssets: async (kitId: number, assetType?: string): Promise<KitAsset[]> => {
+    const params = assetType ? `?asset_type=${assetType}` : '';
+    return apiFetch(`/api/brand-kits/${kitId}/assets${params}`);
+  },
+
+  deleteKitAsset: async (kitId: number, assetId: number): Promise<void> => {
+    return apiFetch(`/api/brand-kits/${kitId}/assets/${assetId}`, { method: 'DELETE' });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// AI Mode — chat-style generation endpoint
+// ---------------------------------------------------------------------------
+
+export interface AIModeResult {
+  asset_id: number;
+  file_path: string;
+  caption: string;
+  product_kit_id?: number | null;
+  product_kit_name?: string | null;
+  overlay_applied: boolean;
+  message: string;
+}
+
+export const aiModeApi = {
+  generate: async (message: string, model?: string): Promise<AIModeResult> => {
+    return apiFetch('/api/posts/ai-generate', {
+      method: 'POST',
+      body: JSON.stringify({ message, model: model ?? 'google/gemini-3-pro-image-preview' }),
+    });
+  },
+};
